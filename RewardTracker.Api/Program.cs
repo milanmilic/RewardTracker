@@ -53,11 +53,13 @@ app.MapControllers();
 // Ukljucujemo Hangfire Dashboard (UI)
 app.UseHangfireDashboard("/hangfire");
 
-// Testna ruta za podizanje prozora
-app.MapGet("/api/test-browser", async (RewardTracker.Infrastructure.Services.RewardAutomationService service) => 
+// Testna ruta koja koristi Hangfire da zakaže Playwright posao u pozadini
+app.MapGet("/api/test-hangfire", (IBackgroundJobClient backgroundJobs) => 
 {
-    await service.RunTestBrowserAsync();
-    return Results.Ok("Završeno");
+    // Predajemo posao Hangfire-u. On će ga odmah preuzeti i izvršiti u pozadini!
+    backgroundJobs.Enqueue<RewardTracker.Infrastructure.Services.RewardAutomationService>(service => service.RunTestBrowserAsync());
+    
+    return Results.Ok("Posao uspešno predat Hangfire-u! Prebaci se na /hangfire tab da pratiš izvršavanje.");
 });
 
 app.Run();

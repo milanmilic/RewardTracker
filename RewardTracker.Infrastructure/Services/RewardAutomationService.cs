@@ -79,33 +79,61 @@ public class RewardAutomationService
                 await Task.Delay(random.Next(3000, 6000)); 
             }
 
-            Console.WriteLine("=== CITANJE UKUPNIH POENA ===");
-            // Umesto otvaranja novog prozora, koristimo ISTI OVAJ u kom si potvrdio da si ulogovan!
-            await desktopPage.GotoAsync("https://rewards.bing.com");
-            await Task.Delay(4000); 
+            Console.WriteLine("=== CITANJE UKUPNIH POENA SA BING EKRANA ===");
+            await Task.Delay(3000); 
 
-            var html = await desktopPage.ContentAsync();
-            var match = Regex.Match(html, @"""availablePoints""\s*:\s*(\d+)");
+            // Sada NE IDEMO na rewards.bing.com jer te Microsoft tamo izbaci.
+            // Ostajemo tu gde jesmo (na www.bing.com) gde si video poene gore desno!
+            var pointsText = await desktopPage.EvaluateAsync<string>(@"
+                () => {
+                    // Trazimo bilo koji link koji vodi ka rewards i ima broj u sebi
+                    var aTags = document.querySelectorAll('a');
+                    for(var i = 0; i < aTags.length; i++) {
+                        if(aTags[i].href.indexOf('rewards.bing.com') > -1 && aTags[i].innerText.match(/\d/)) {
+                            return aTags[i].innerText;
+                        }
+                    }
+                    // Ako to ne uspe, trazimo genericke id-jeve koje bing koristi za poene
+                    var rh = document.getElementById('id_rh');
+                    if (rh && rh.innerText.match(/\d/)) return rh.innerText;
+                    
+                    var rc = document.getElementById('id_rc');
+                    if (rc && rc.innerText.match(/\d/)) return rc.innerText;
 
-            if (match.Success)
+                    return '';
+                }
+            ");
+
+            Console.WriteLine("Tekst izvucen sa ekrana gore desno: '" + pointsText + "'");
+
+            if (!string.IsNullOrWhiteSpace(pointsText))
             {
-                int pts = int.Parse(match.Groups[1].Value);
-                Console.WriteLine("Pronadjen tacan broj poena preko Regex-a: " + pts);
-                
-                var log = new RewardTracker.Core.Entities.PointLog
+                var cleanNumber = Regex.Replace(pointsText, "[^0-9]", "");
+                if (int.TryParse(cleanNumber, out int pts) && pts > 0)
                 {
-                    AccountId = account.Id,
-                    Date = DateTime.UtcNow,
-                    TotalPointsAfter = pts,
-                    PointsEarned = pts - account.CurrentPoints
-                };
-                dbContext.PointLogs.Add(log);
-                
-                account.CurrentPoints = pts;
+                    Console.WriteLine("Uspesno prepoznat broj: " + pts);
+                    
+                    var log = new RewardTracker.Core.Entities.PointLog
+                    {
+                        AccountId = account.Id,
+                        Date = DateTime.UtcNow,
+                        TotalPointsAfter = pts,
+                        PointsEarned = pts - account.CurrentPoints
+                    };
+                    dbContext.PointLogs.Add(log);
+                    
+                    account.CurrentPoints = pts;
+                    dbContext.Accounts.Update(account);
+                    await dbContext.SaveChangesAsync();
+                }
+                else
+                {
+                    Console.WriteLine("Nisam uspeo da pretvorim tekst u broj.");
+                }
             }
             else
             {
-                Console.WriteLine("Nisam uspeo da pronadjem availablePoints u HTML-u.");
+                Console.WriteLine("Nisam uspeo da pronadjem poene gore desno.");
             }
 
             account.SessionData = await desktopContext.StorageStateAsync();

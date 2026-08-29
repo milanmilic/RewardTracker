@@ -120,7 +120,7 @@ public class RewardAutomationService
                 Console.WriteLine("Pronadjen tekst poena: " + pointsText);
                 
                 // Očisti sve što nije broj (npr. zareze, tačke)
-                var cleanNumber = Regex.Replace(pointsText, "[^\d]", "");
+                var cleanNumber = Regex.Replace(pointsText, "[^0-9]", "");
                 if (int.TryParse(cleanNumber, out int pts))
                 {
                     var log = new RewardTracker.Core.Entities.PointLog

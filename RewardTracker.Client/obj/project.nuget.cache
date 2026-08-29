@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "joHNTiSFSDc=",
+  "dgSpecHash": "S7suSGdsqYU=",
   "success": true,
-  "projectFilePath": "C:\\Users\\mimi2004\\sources\\repos\\RewardTracker\\RewardTracker.Client\\RewardTracker.Client.csproj",
+  "projectFilePath": "C:\\Users\\mimi2004\\source\\repos\\RewardTracker\\RewardTracker.Client\\RewardTracker.Client.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\mimi2004\\.nuget\\packages\\microsoft.aspnetcore.app.internal.assets\\10.0.11\\microsoft.aspnetcore.app.internal.assets.10.0.11.nupkg.sha512",
     "C:\\Users\\mimi2004\\.nuget\\packages\\microsoft.aspnetcore.authorization\\10.0.11\\microsoft.aspnetcore.authorization.10.0.11.nupkg.sha512",

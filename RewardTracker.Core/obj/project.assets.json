@@ -14,17 +14,17 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\mimi2004\\sources\\repos\\RewardTracker\\RewardTracker.Core\\RewardTracker.Core.csproj",
+      "projectUniqueName": "C:\\Users\\mimi2004\\source\\repos\\RewardTracker\\RewardTracker.Core\\RewardTracker.Core.csproj",
       "projectName": "RewardTracker.Core",
-      "projectPath": "C:\\Users\\mimi2004\\sources\\repos\\RewardTracker\\RewardTracker.Core\\RewardTracker.Core.csproj",
+      "projectPath": "C:\\Users\\mimi2004\\source\\repos\\RewardTracker\\RewardTracker.Core\\RewardTracker.Core.csproj",
       "packagesPath": "C:\\Users\\mimi2004\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\mimi2004\\sources\\repos\\RewardTracker\\RewardTracker.Core\\obj\\",
+      "outputPath": "C:\\Users\\mimi2004\\source\\repos\\RewardTracker\\RewardTracker.Core\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\mimi2004\\sources\\repos\\RewardTracker\\NuGet.Config",
+        "C:\\Users\\mimi2004\\source\\repos\\RewardTracker\\NuGet.Config",
         "C:\\Users\\mimi2004\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"

@@ -119,7 +119,7 @@ public class RewardAutomationService
             var html = await finalPage.ContentAsync();
             
             // Trazimo pattern "availablePoints": 12968 unutar izvornog koda
-            var match = Regex.Match(html, ""availablePoints"\s*:\s*(\d+)");
+            var match = Regex.Match(html, @"""availablePoints""\s*:\s*(\d+)");
 
             if (match.Success)
             {

@@ -28,10 +28,10 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     
-    // Automatsko pokretanje migracija (samo za testiranje, kreira bazu ako ne postoji)
+    // Automatsko pokretanje migracija (kreira bazu i tabele na startu)
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // db.Database.Migrate(); // Zakomentarisano dok ne napravimo migracije
+    db.Database.Migrate();
 }
 
 app.UseHttpsRedirection();

@@ -83,7 +83,7 @@ public class RewardAutomationService
             await dbContext.SaveChangesAsync();
         }
         catch (Exception ex) { Console.WriteLine("Greska PC: " + ex.Message); }
-        finally { await desktopContext.CloseAsync(); } // OVO JE BILO ZABORAVLJENO!
+        finally { await desktopContext.CloseAsync(); }
 
         Console.WriteLine("=== START: MOBILNE PRETRAGE ===");
         var mobileOptions = playwright.Devices["Pixel 5"];
@@ -107,29 +107,25 @@ public class RewardAutomationService
         finally { await mobileContext.CloseAsync(); }
 
         Console.WriteLine("=== CITANJE UKUPNIH POENA ===");
-        // Otvaramo novi prozor cisto za proveru poena na kraju
         var finalContext = await browser.NewContextAsync(new BrowserNewContextOptions { StorageState = account.SessionData });
         var finalPage = await finalContext.NewPageAsync();
         try
         {
-            // Idemo direktno na Rewards Dashboard!
             await finalPage.GotoAsync("https://rewards.bing.com");
             await Task.Delay(5000); 
 
-            // Koristimo JavaScript injekciju da procitamo poene direktno iz memorije browsera (najpouzdaniji metod ikada!)
-            int pts = await finalPage.EvaluateAsync<int>(@"
-                () => {
-                    try {
-                        return window.dashboard.userStatus.availablePoints;
-                    } catch(e) {
-                        return -1;
-                    }
-                }
-            ");
+            // Cita se ceo kod (HTML) ucitane stranice. 
+            // Izbegavamo oslanjanje na JS varijable ili ID elemente, jer Microsoft direktno lepi JSON string u HTML stranice.
+            var html = await finalPage.ContentAsync();
+            
+            // Trazimo pattern "availablePoints": 12968 unutar izvornog koda
+            var match = Regex.Match(html, ""availablePoints"\s*:\s*(\d+)");
 
-            if (pts > 0)
+            if (match.Success)
             {
-                Console.WriteLine("Pronadjen tacan broj poena preko JS-a: " + pts);
+                int pts = int.Parse(match.Groups[1].Value);
+                Console.WriteLine("Pronadjen tacan broj poena preko Regex-a u HTMLu: " + pts);
+                
                 var log = new RewardTracker.Core.Entities.PointLog
                 {
                     AccountId = account.Id,
@@ -146,7 +142,7 @@ public class RewardAutomationService
             }
             else
             {
-                Console.WriteLine("Nisam uspeo da ucitam window.dashboard varijablu.");
+                Console.WriteLine("Nisam uspeo da pronadjem availablePoints u izvornom HTML kodu stranice.");
             }
         }
         catch (Exception ex)

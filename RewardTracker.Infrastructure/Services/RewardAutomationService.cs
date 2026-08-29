@@ -59,107 +59,95 @@ public class RewardAutomationService
         if (account == null || string.IsNullOrEmpty(account.SessionData)) return;
 
         using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
         
         bool needsPcSearch = true;
         bool needsMobileSearch = true;
 
-        Console.WriteLine("=== PROVERA STANJA POENA ===");
+        Console.WriteLine("=== PROVERA STANJA POENA PREKO PRETRAŽIVAČA ===");
         
-        // Gađamo Bing Rewards API da proverimo trenutno stanje
-        var apiContext = await playwright.APIRequest.NewContextAsync(new APIRequestNewContextOptions { StorageState = account.SessionData });
-        var response = await apiContext.GetAsync("https://rewards.bing.com/api/getuserinfo?type=1");
-        
-        if (response.Ok)
+        var desktopOptions = new BrowserNewContextOptions { StorageState = account.SessionData };
+        var desktopContext = await browser.NewContextAsync(desktopOptions);
+        var desktopPage = await desktopContext.NewPageAsync();
+
+        try
         {
-            try 
+            // Idemo direktno kroz pretraživač da zaobiđemo bot zaštitu API-ja
+            var response = await desktopPage.GotoAsync("https://rewards.bing.com/api/getuserinfo?type=1");
+            await Task.Delay(2000);
+            
+            // Izvlačimo sav tekst iz body taga gde browser renderuje JSON
+            var jsonString = await desktopPage.EvaluateAsync<string>("() => document.body.innerText");
+            Console.WriteLine("API Odgovor: " + (jsonString.Length > 200 ? jsonString.Substring(0, 200) : jsonString));
+
+            var json = JsonNode.Parse(jsonString);
+            var userStatus = json?["dashboard"]?["userStatus"];
+            var counters = userStatus?["counters"];
+
+            if (userStatus != null)
             {
-                var jsonString = await response.TextAsync();
-                
-                // Ispisujemo prvih 200 karaktera u log čisto da vidimo da li smo dobili pravi fajl
-                Console.WriteLine("API Odgovor: " + jsonString.Substring(0, Math.Min(200, jsonString.Length)));
-                
-                var json = JsonNode.Parse(jsonString);
-                var userStatus = json?["dashboard"]?["userStatus"];
-                var counters = userStatus?["counters"];
-                
-                if (userStatus != null)
+                var ptsNode = userStatus["availablePoints"];
+                if (ptsNode != null)
                 {
-                    var ptsNode = userStatus["availablePoints"];
-                    if (ptsNode != null)
+                    int pts = (int)ptsNode;
+                    var log = new RewardTracker.Core.Entities.PointLog
                     {
-                        int pts = (int)ptsNode;
-                        
-                        // Zapisujemo u PointLog za statistiku!
-                        var log = new RewardTracker.Core.Entities.PointLog
-                        {
-                            AccountId = account.Id,
-                            Date = DateTime.UtcNow,
-                            TotalPointsAfter = pts,
-                            PointsEarned = pts - account.CurrentPoints // Razlika od proslog puta
-                        };
-                        dbContext.PointLogs.Add(log);
-                        
-                        account.CurrentPoints = pts;
-                        dbContext.Accounts.Update(account);
-                        await dbContext.SaveChangesAsync();
-                        Console.WriteLine("Uspesno azurirani poeni u bazi na: " + pts);
-                    }
-                }
-
-                if (counters != null)
-                {
-                    // PC Pretrage
-                    var pcSearch = counters["pcSearch"]?[0];
-                    if (pcSearch != null)
-                    {
-                        int pcProgress = (int)pcSearch["pointProgress"]!;
-                        int pcMax = (int)pcSearch["pointProgressMax"]!;
-                        needsPcSearch = pcProgress < pcMax;
-                        Console.WriteLine($"PC Pretrage: {pcProgress}/{pcMax}");
-                    }
-
-                    // Mobilne pretrage
-                    var mobileSearch = counters["mobileSearch"]?[0];
-                    if (mobileSearch != null)
-                    {
-                        int mobileProgress = (int)mobileSearch["pointProgress"]!;
-                        int mobileMax = (int)mobileSearch["pointProgressMax"]!;
-                        needsMobileSearch = mobileProgress < mobileMax;
-                        Console.WriteLine($"Mobilne Pretrage: {mobileProgress}/{mobileMax}");
-                    }
+                        AccountId = account.Id,
+                        Date = DateTime.UtcNow,
+                        TotalPointsAfter = pts,
+                        PointsEarned = pts - account.CurrentPoints 
+                    };
+                    dbContext.PointLogs.Add(log);
+                    
+                    account.CurrentPoints = pts;
+                    dbContext.Accounts.Update(account);
+                    await dbContext.SaveChangesAsync();
+                    Console.WriteLine("Uspesno azurirani poeni u bazi na: " + pts);
                 }
             }
-            catch (Exception ex)
+
+            if (counters != null)
             {
-                Console.WriteLine("Nisam uspeo da dekodiram stanje poena, pokrećem za svaki slučaj: " + ex.Message);
+                var pcSearch = counters["pcSearch"]?[0];
+                if (pcSearch != null)
+                {
+                    int pcProgress = (int)pcSearch["pointProgress"]!;
+                    int pcMax = (int)pcSearch["pointProgressMax"]!;
+                    needsPcSearch = pcProgress < pcMax;
+                    Console.WriteLine($"PC Pretrage: {pcProgress}/{pcMax}");
+                }
+
+                var mobileSearch = counters["mobileSearch"]?[0];
+                if (mobileSearch != null)
+                {
+                    int mobileProgress = (int)mobileSearch["pointProgress"]!;
+                    int mobileMax = (int)mobileSearch["pointProgressMax"]!;
+                    needsMobileSearch = mobileProgress < mobileMax;
+                    Console.WriteLine($"Mobilne Pretrage: {mobileProgress}/{mobileMax}");
+                }
             }
         }
-        else
+        catch (Exception ex)
         {
-            Console.WriteLine("Nisam uspeo da dohvatim API podatke. Krećem sa pretragama naslepo.");
+            Console.WriteLine("Nisam uspeo da dekodiram stanje poena: " + ex.Message);
         }
 
-        // Ako su obe stvari završene, možemo odmah da izađemo
         if (!needsPcSearch && !needsMobileSearch)
         {
-            Console.WriteLine("Sve pretrage su završene za danas! Bot se gasi bez otvaranja pretraživača.");
+            Console.WriteLine("Sve pretrage su završene za danas! Bot se gasi.");
+            await desktopContext.CloseAsync();
             return;
         }
 
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
         var random = new Random();
         var baseWords = new[] { "Srbija", "Beograd", "Vesti", "Sport", "Filmovi", "Recepti", "Tehnologija", "Zanimljivosti", "Istorija", "Automobili", "Kompjuteri", "Muzika" };
 
         if (needsPcSearch)
         {
             Console.WriteLine("=== START: PC PRETRAGE ===");
-            var desktopOptions = new BrowserNewContextOptions { StorageState = account.SessionData };
-            var desktopContext = await browser.NewContextAsync(desktopOptions);
-            var desktopPage = await desktopContext.NewPageAsync();
-
             try 
             {
-                for(int i = 0; i < 5; i++) // Test
+                for(int i = 0; i < 5; i++)
                 {
                     var term = baseWords[random.Next(baseWords.Length)] + " " + random.Next(1000, 99999);
                     await desktopPage.GotoAsync("https://www.bing.com");
@@ -173,12 +161,12 @@ public class RewardAutomationService
                 await dbContext.SaveChangesAsync();
             }
             catch (Exception ex) { Console.WriteLine("Greska PC: " + ex.Message); }
-            finally { await desktopContext.CloseAsync(); }
         }
         else
         {
             Console.WriteLine("Preskačem PC pretrage...");
         }
+        await desktopContext.CloseAsync();
 
         if (needsMobileSearch)
         {
@@ -191,7 +179,7 @@ public class RewardAutomationService
 
             try 
             {
-                for(int i = 0; i < 5; i++) // Test
+                for(int i = 0; i < 5; i++)
                 {
                     var term = baseWords[random.Next(baseWords.Length)] + " " + random.Next(1000, 99999);
                     await mobilePage.GotoAsync("https://www.bing.com");
@@ -209,4 +197,3 @@ public class RewardAutomationService
         }
     }
 }
-

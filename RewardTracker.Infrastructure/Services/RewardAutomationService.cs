@@ -74,16 +74,36 @@ public class RewardAutomationService
             try 
             {
                 var jsonString = await response.TextAsync();
-                var json = JsonNode.Parse(jsonString);
-                var counters = json?["dashboard"]?["userStatus"]?["counters"];
                 
-                // Čupamo ukupne poene da bismo ažurirali bazu i Blazor interfejs
-                var availablePoints = (int?)json?["dashboard"]?["userStatus"]?["availablePoints"];
-                if (availablePoints.HasValue)
+                // Ispisujemo prvih 200 karaktera u log čisto da vidimo da li smo dobili pravi fajl
+                Console.WriteLine("API Odgovor: " + jsonString.Substring(0, Math.Min(200, jsonString.Length)));
+                
+                var json = JsonNode.Parse(jsonString);
+                var userStatus = json?["dashboard"]?["userStatus"];
+                var counters = userStatus?["counters"];
+                
+                if (userStatus != null)
                 {
-                    account.CurrentPoints = availablePoints.Value;
-                    dbContext.Accounts.Update(account);
-                    await dbContext.SaveChangesAsync();
+                    var ptsNode = userStatus["availablePoints"];
+                    if (ptsNode != null)
+                    {
+                        int pts = (int)ptsNode;
+                        
+                        // Zapisujemo u PointLog za statistiku!
+                        var log = new RewardTracker.Core.Entities.PointLog
+                        {
+                            AccountId = account.Id,
+                            Date = DateTime.UtcNow,
+                            TotalPoints = pts,
+                            PointsEarned = pts - account.CurrentPoints // Razlika od proslog puta
+                        };
+                        dbContext.PointLogs.Add(log);
+                        
+                        account.CurrentPoints = pts;
+                        dbContext.Accounts.Update(account);
+                        await dbContext.SaveChangesAsync();
+                        Console.WriteLine("Uspesno azurirani poeni u bazi na: " + pts);
+                    }
                 }
 
                 if (counters != null)
@@ -189,3 +209,4 @@ public class RewardAutomationService
         }
     }
 }
+

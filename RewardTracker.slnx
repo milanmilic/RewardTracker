@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="RewardTracker.Api/RewardTracker.Api.csproj" />
+  <Project Path="RewardTracker.Client/RewardTracker.Client.csproj" />
+  <Project Path="RewardTracker.Core/RewardTracker.Core.csproj" />
+  <Project Path="RewardTracker.Infrastructure/RewardTracker.Infrastructure.csproj" />
+</Solution>

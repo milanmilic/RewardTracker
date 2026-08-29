@@ -83,6 +83,7 @@ public class RewardAutomationService
             await dbContext.SaveChangesAsync();
         }
         catch (Exception ex) { Console.WriteLine("Greska PC: " + ex.Message); }
+        finally { await desktopContext.CloseAsync(); } // OVO JE BILO ZABORAVLJENO!
 
         Console.WriteLine("=== START: MOBILNE PRETRAGE ===");
         var mobileOptions = playwright.Devices["Pixel 5"];
@@ -106,41 +107,46 @@ public class RewardAutomationService
         finally { await mobileContext.CloseAsync(); }
 
         Console.WriteLine("=== CITANJE UKUPNIH POENA ===");
+        // Otvaramo novi prozor cisto za proveru poena na kraju
+        var finalContext = await browser.NewContextAsync(new BrowserNewContextOptions { StorageState = account.SessionData });
+        var finalPage = await finalContext.NewPageAsync();
         try
         {
-            // Vracamo se na bing sa PC-a da procitamo poene iz HTML-a (mnogo pouzdanije od API-ja koji stalno menjaju)
-            await desktopPage.GotoAsync("https://www.bing.com");
-            await Task.Delay(5000); // Cekamo da se stranica potpuno ucita
+            // Idemo direktno na Rewards Dashboard!
+            await finalPage.GotoAsync("https://rewards.bing.com");
+            await Task.Delay(5000); 
 
-            // Bing obicno cuva poene u elementu sa ID-jem id_rc (Rewards Counter)
-            var pointsElement = await desktopPage.QuerySelectorAsync("#id_rc");
-            if (pointsElement != null)
-            {
-                var pointsText = await pointsElement.InnerTextAsync();
-                Console.WriteLine("Pronadjen tekst poena: " + pointsText);
-                
-                // Očisti sve što nije broj (npr. zareze, tačke)
-                var cleanNumber = Regex.Replace(pointsText, "[^0-9]", "");
-                if (int.TryParse(cleanNumber, out int pts))
-                {
-                    var log = new RewardTracker.Core.Entities.PointLog
-                    {
-                        AccountId = account.Id,
-                        Date = DateTime.UtcNow,
-                        TotalPointsAfter = pts,
-                        PointsEarned = pts - account.CurrentPoints
-                    };
-                    dbContext.PointLogs.Add(log);
-                    
-                    account.CurrentPoints = pts;
-                    dbContext.Accounts.Update(account);
-                    await dbContext.SaveChangesAsync();
-                    Console.WriteLine("Uspesno azurirani poeni u bazi na: " + pts);
+            // Koristimo JavaScript injekciju da procitamo poene direktno iz memorije browsera (najpouzdaniji metod ikada!)
+            int pts = await finalPage.EvaluateAsync<int>(@"
+                () => {
+                    try {
+                        return window.dashboard.userStatus.availablePoints;
+                    } catch(e) {
+                        return -1;
+                    }
                 }
+            ");
+
+            if (pts > 0)
+            {
+                Console.WriteLine("Pronadjen tacan broj poena preko JS-a: " + pts);
+                var log = new RewardTracker.Core.Entities.PointLog
+                {
+                    AccountId = account.Id,
+                    Date = DateTime.UtcNow,
+                    TotalPointsAfter = pts,
+                    PointsEarned = pts - account.CurrentPoints
+                };
+                dbContext.PointLogs.Add(log);
+                
+                account.CurrentPoints = pts;
+                dbContext.Accounts.Update(account);
+                await dbContext.SaveChangesAsync();
+                Console.WriteLine("Uspesno azurirani poeni u bazi na: " + pts);
             }
             else
             {
-                Console.WriteLine("Nisam uspeo da pronadjem #id_rc element na Bing-u.");
+                Console.WriteLine("Nisam uspeo da ucitam window.dashboard varijablu.");
             }
         }
         catch (Exception ex)
@@ -149,7 +155,7 @@ public class RewardAutomationService
         }
         finally
         {
-            await desktopContext.CloseAsync();
+            await finalContext.CloseAsync();
         }
     }
 }

@@ -42,6 +42,7 @@
             <th>ID</th>
             <th>Korisničko ime</th>
             <th>Trenutno poena</th>
+            <th>Sesija sačuvana</th>
             <th>Status</th>
             <th>Akcije</th>
         </tr>
@@ -64,11 +65,19 @@
                     <td><strong>@acc.Username</strong></td>
                     <td>@acc.CurrentPoints</td>
                     <td>
+                        @if (string.IsNullOrEmpty(acc.SessionData)) { <span class="text-danger"><i class="bi bi-x-circle"></i> Ne</span> }
+                        else { <span class="text-success"><i class="bi bi-check-circle"></i> Da</span> }
+                    </td>
+                    <td>
                         @if (acc.IsActive) { <span class="badge bg-success">Aktivan</span> }
                         else { <span class="badge bg-secondary">Neaktivan</span> }
                     </td>
                     <td>
-                                                <button class="btn btn-sm btn-primary me-2" @onclick="() => StartLogin(acc.Id)">Uloguj se</button>
+                                                                        <button class="btn btn-sm btn-primary me-2" @onclick="() => StartLogin(acc.Id)">Uloguj se</button>
+                        @if (!string.IsNullOrEmpty(acc.SessionData))
+                        {
+                            <button class="btn btn-sm btn-success me-2" @onclick="() => RunBot(acc.Id)"><i class="bi bi-play-fill"></i> Pokreni bota</button>
+                        }
                         <button class="btn btn-sm btn-danger" @onclick="() => DeleteAccount(acc.Id)">Obriši</button>
                     </td>
                 </tr>
@@ -119,6 +128,15 @@
         loginMessage = null;
     }
 
+        private async Task RunBot(int id)
+    {
+        loginMessage = "Bot je pušten sa lanca! Prati proces na svom ekranu ili u Hangfire tabli.";
+        await Http.PostAsync($"api/accounts/{id}/run", null);
+        
+        await Task.Delay(5000);
+        loginMessage = null;
+    }
+
     private async Task DeleteAccount(int id)
     {
         var response = await Http.DeleteAsync($"api/accounts/{id}");
@@ -133,4 +151,5 @@
         Navigation.NavigateTo("/admin");
     }
 }
+
 

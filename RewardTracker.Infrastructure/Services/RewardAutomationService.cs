@@ -68,4 +68,72 @@ public class RewardAutomationService
             await browser.CloseAsync();
         }
     }
+    public async Task RunDailyTasksAsync(int accountId)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var account = await dbContext.Accounts.FindAsync(accountId);
+        if (account == null || string.IsNullOrEmpty(account.SessionData)) 
+        {
+            Console.WriteLine("Nalog ne postoji ili nema sacuvanu sesiju.");
+            return;
+        }
+
+        using var playwright = await Playwright.CreateAsync();
+        
+        // Za probu ostavljamo Headless = false da bi ti video kako bot radi sam!
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
+
+        // Najbitniji deo: Ubacujemo TVOJE kolačiće iz baze pre nego što otvorimo prozor!
+        var contextOptions = new BrowserNewContextOptions
+        {
+            StorageState = account.SessionData
+        };
+        var context = await browser.NewContextAsync(contextOptions);
+        var page = await context.NewPageAsync();
+
+        try 
+        {
+            await page.GotoAsync("https://www.bing.com");
+            
+            // Cekamo par sekundi da se ucita
+            await Task.Delay(3000);
+
+            // Radimo 3 random pretrage da bi dobili poene (simuliramo rad)
+            var pretrage = new[] { "Vremenska prognoza", "Najbolji restorani", "Kako radi Playwright" };
+
+            foreach(var termin in pretrage)
+            {
+                // Nalazimo polje za pretragu (name='q') i kucamo tekst
+                await page.FillAsync("[name='q']", termin);
+                await page.PressAsync("[name='q']", "Enter");
+                
+                // Čekamo da mreža prestane da učitava elemente
+                await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+                
+                // Pravimo se da čitamo rezultate 5 sekundi (zbog anti-bot zaštite)
+                await Task.Delay(5000); 
+                
+                // Vraćamo se na početnu
+                await page.GotoAsync("https://www.bing.com");
+                await Task.Delay(2000);
+            }
+
+            // Opciono: Azuriramo SessionData jer Microsoft nekad osveži kolačiće
+            var newSessionState = await context.StorageStateAsync();
+            account.SessionData = newSessionState;
+            dbContext.Accounts.Update(account);
+            
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Greska pri botovanju: " + ex.Message);
+        }
+        finally
+        {
+            await browser.CloseAsync();
+        }
+    }
 }

@@ -50,4 +50,10 @@ public class AccountsController : ControllerBase
         backgroundJobs.Enqueue<RewardTracker.Infrastructure.Services.RewardAutomationService>(s => s.StartLoginSessionAsync(id));
         return Ok();
     }
+    [HttpPost("{id}/run")]
+    public IActionResult RunTasks(int id, [FromServices] IBackgroundJobClient backgroundJobs)
+    {
+        backgroundJobs.Enqueue<RewardTracker.Infrastructure.Services.RewardAutomationService>(s => s.RunDailyTasksAsync(id));
+        return Ok();
+    }
 }

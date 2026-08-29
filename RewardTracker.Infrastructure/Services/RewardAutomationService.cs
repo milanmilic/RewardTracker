@@ -78,6 +78,36 @@ public class RewardAutomationService
                 await desktopPage.PressAsync("[name='q']", "Enter");
                 await Task.Delay(random.Next(3000, 6000)); 
             }
+
+            Console.WriteLine("=== CITANJE UKUPNIH POENA ===");
+            // Umesto otvaranja novog prozora, koristimo ISTI OVAJ u kom si potvrdio da si ulogovan!
+            await desktopPage.GotoAsync("https://rewards.bing.com");
+            await Task.Delay(4000); 
+
+            var html = await desktopPage.ContentAsync();
+            var match = Regex.Match(html, ""availablePoints"\s*:\s*(\d+)");
+
+            if (match.Success)
+            {
+                int pts = int.Parse(match.Groups[1].Value);
+                Console.WriteLine("Pronadjen tacan broj poena preko Regex-a: " + pts);
+                
+                var log = new RewardTracker.Core.Entities.PointLog
+                {
+                    AccountId = account.Id,
+                    Date = DateTime.UtcNow,
+                    TotalPointsAfter = pts,
+                    PointsEarned = pts - account.CurrentPoints
+                };
+                dbContext.PointLogs.Add(log);
+                
+                account.CurrentPoints = pts;
+            }
+            else
+            {
+                Console.WriteLine("Nisam uspeo da pronadjem availablePoints u HTML-u.");
+            }
+
             account.SessionData = await desktopContext.StorageStateAsync();
             dbContext.Accounts.Update(account);
             await dbContext.SaveChangesAsync();
@@ -105,53 +135,5 @@ public class RewardAutomationService
         }
         catch (Exception ex) { Console.WriteLine("Greska Mobilni: " + ex.Message); }
         finally { await mobileContext.CloseAsync(); }
-
-        Console.WriteLine("=== CITANJE UKUPNIH POENA ===");
-        var finalContext = await browser.NewContextAsync(new BrowserNewContextOptions { StorageState = account.SessionData });
-        var finalPage = await finalContext.NewPageAsync();
-        try
-        {
-            await finalPage.GotoAsync("https://rewards.bing.com");
-            await Task.Delay(5000); 
-
-            // Cita se ceo kod (HTML) ucitane stranice. 
-            // Izbegavamo oslanjanje na JS varijable ili ID elemente, jer Microsoft direktno lepi JSON string u HTML stranice.
-            var html = await finalPage.ContentAsync();
-            
-            // Trazimo pattern "availablePoints": 12968 unutar izvornog koda
-            var match = Regex.Match(html, @"""availablePoints""\s*:\s*(\d+)");
-
-            if (match.Success)
-            {
-                int pts = int.Parse(match.Groups[1].Value);
-                Console.WriteLine("Pronadjen tacan broj poena preko Regex-a u HTMLu: " + pts);
-                
-                var log = new RewardTracker.Core.Entities.PointLog
-                {
-                    AccountId = account.Id,
-                    Date = DateTime.UtcNow,
-                    TotalPointsAfter = pts,
-                    PointsEarned = pts - account.CurrentPoints
-                };
-                dbContext.PointLogs.Add(log);
-                
-                account.CurrentPoints = pts;
-                dbContext.Accounts.Update(account);
-                await dbContext.SaveChangesAsync();
-                Console.WriteLine("Uspesno azurirani poeni u bazi na: " + pts);
-            }
-            else
-            {
-                Console.WriteLine("Nisam uspeo da pronadjem availablePoints u izvornom HTML kodu stranice.");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Greska pri citanju poena: " + ex.Message);
-        }
-        finally
-        {
-            await finalContext.CloseAsync();
-        }
     }
 }

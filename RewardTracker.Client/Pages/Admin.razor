@@ -1,10 +1,12 @@
 @page "/admin"
 @using RewardTracker.Core.Entities
+@using System.Net.Http.Json
+@inject HttpClient Http
 
 <PageTitle>Administracija Sajtova</PageTitle>
 
 <h1>Upravljanje Reward Sajtovima</h1>
-<p class="text-muted">Ovo je testni interfejs sa *mock* (lažnim) podacima pre povezivanja baze.</p>
+<p class="text-muted">Podaci se učitavaju iz PostgreSQL baze preko API-ja.</p>
 
 <div class="row mb-4">
     <div class="col-md-6">
@@ -30,67 +32,79 @@
 </div>
 
 <h3>Lista sajtova</h3>
-<table class="table table-hover table-striped shadow-sm">
-    <thead class="table-dark">
-        <tr>
-            <th>ID</th>
-            <th>Ime</th>
-            <th>URL</th>
-            <th>Status</th>
-            <th>Akcije</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (sites.Count == 0)
-        {
-            <tr><td colspan="5" class="text-center">Nema unetih sajtova.</td></tr>
-        }
-        @foreach (var site in sites)
-        {
+@if (sites == null)
+{
+    <p><em>Učitavanje...</em></p>
+}
+else
+{
+    <table class="table table-hover table-striped shadow-sm">
+        <thead class="table-dark">
             <tr>
-                <td>@site.Id</td>
-                <td><strong>@site.Name</strong></td>
-                <td><a href="@site.Url" target="_blank">@site.Url</a></td>
-                <td>
-                    @if (site.IsActive) { <span class="badge bg-success">Aktivan</span> }
-                    else { <span class="badge bg-secondary">Neaktivan</span> }
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteSite(site.Id)">Obriši</button>
-                </td>
+                <th>ID</th>
+                <th>Ime</th>
+                <th>URL</th>
+                <th>Status</th>
+                <th>Akcije</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @if (sites.Count == 0)
+            {
+                <tr><td colspan="5" class="text-center">Nema unetih sajtova u bazi.</td></tr>
+            }
+            @foreach (var site in sites)
+            {
+                <tr>
+                    <td>@site.Id</td>
+                    <td><strong>@site.Name</strong></td>
+                    <td><a href="@site.Url" target="_blank">@site.Url</a></td>
+                    <td>
+                        @if (site.IsActive) { <span class="badge bg-success">Aktivan</span> }
+                        else { <span class="badge bg-secondary">Neaktivan</span> }
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteSite(site.Id)">Obriši</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 
 @code {
-    private List<RewardSite> sites = new();
+    private List<RewardSite>? sites;
     private RewardSite newSite = new() { IsActive = true };
-    private int nextId = 3;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // Testni (mock) podaci
-        sites.Add(new RewardSite { Id = 1, Name = "Microsoft Bing Rewards", Url = "https://rewards.bing.com", IsActive = true });
-        sites.Add(new RewardSite { Id = 2, Name = "Brave Rewards", Url = "https://brave.com", IsActive = false });
+        await LoadSites();
     }
 
-    private void AddSite()
+    private async Task LoadSites()
+    {
+        sites = await Http.GetFromJsonAsync<List<RewardSite>>("api/rewardsites");
+    }
+
+    private async Task AddSite()
     {
         if (!string.IsNullOrWhiteSpace(newSite.Name))
         {
-            newSite.Id = nextId++;
-            sites.Add(newSite);
-            newSite = new() { IsActive = true }; // Reset forme
+            var response = await Http.PostAsJsonAsync("api/rewardsites", newSite);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadSites(); // Osvazi tabelu iz baze
+                newSite = new() { IsActive = true }; // Reset forme
+            }
         }
     }
 
-    private void DeleteSite(int id)
+    private async Task DeleteSite(int id)
     {
-        var site = sites.FirstOrDefault(s => s.Id == id);
-        if (site != null)
+        var response = await Http.DeleteAsync("api/rewardsites/$id");
+        if (response.IsSuccessStatusCode)
         {
-            sites.Remove(site);
+            await LoadSites(); // Osvazi tabelu iz baze
         }
     }
 }

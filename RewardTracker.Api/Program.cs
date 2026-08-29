@@ -54,12 +54,15 @@ app.MapControllers();
 app.UseHangfireDashboard("/hangfire");
 
 // Testna ruta koja koristi Hangfire da zakaže Playwright posao u pozadini
-app.MapGet("/api/test-hangfire", (IBackgroundJobClient backgroundJobs) => 
-{
-    // Predajemo posao Hangfire-u. On će ga odmah preuzeti i izvršiti u pozadini!
-    backgroundJobs.Enqueue<RewardTracker.Infrastructure.Services.RewardAutomationService>(service => service.RunTestBrowserAsync());
-    
-    return Results.Ok("Posao uspešno predat Hangfire-u! Prebaci se na /hangfire tab da pratiš izvršavanje.");
-});
+app.MapGet("/api/test-hangfire", (IBackgroundJobClient backgroundJobs) => { backgroundJobs.Enqueue(() => Console.WriteLine("Hangfire test!")); return Results.Ok("Test job enqueued"); });
+
+// Dodajemo zakazivanje na sistemskom nivou
+var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+recurringJobManager.AddOrUpdate<RewardTracker.Infrastructure.Services.RewardAutomationService>(
+    "dnevni-okidac-pretraga",
+    service => service.ScheduleRandomDailyRuns(),
+    "0 6 * * *" // Svaki dan u 06:00
+);
 
 app.Run();
+

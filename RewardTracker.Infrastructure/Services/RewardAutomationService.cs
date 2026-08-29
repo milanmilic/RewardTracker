@@ -26,7 +26,6 @@ public class RewardAutomationService
 
     public async Task StartLoginSessionAsync(int accountId)
     {
-        // Koristimo ServiceProvider da bezbedno izvučemo bazu u Hangfire pozadinskom poslu
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
@@ -34,40 +33,31 @@ public class RewardAutomationService
         if (account == null) return;
 
         using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions 
-        { 
-            Headless = false // Korisnik mora da vidi ekran
-        });
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
 
         var context = await browser.NewContextAsync();
         var page = await context.NewPageAsync();
 
         try 
         {
-            // Idemo na stranicu za prijavu
             await page.GotoAsync("https://login.live.com/");
-
-            // Dajemo korisniku 90 sekundi da se polako uloguje, unese kod iz SMS-a itd.
-            // Čekamo fiksno kako bi bili 100% sigurni da je Microsoft upisao sve kolačiće nakon logovanja
             await Task.Delay(90000); 
 
-            // Izvlačimo sve kolačiće i localStorage
             var sessionStateJson = await context.StorageStateAsync();
-            
-            // Čuvamo u bazu
             account.SessionData = sessionStateJson;
             dbContext.Accounts.Update(account);
             await dbContext.SaveChangesAsync();
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Greska pri cuvanju sesije: " + ex.Message);
+            Console.WriteLine("Greska: " + ex.Message);
         }
         finally
         {
             await browser.CloseAsync();
         }
     }
+
     public async Task RunDailyTasksAsync(int accountId)
     {
         using var scope = _serviceProvider.CreateScope();
@@ -76,64 +66,68 @@ public class RewardAutomationService
         var account = await dbContext.Accounts.FindAsync(accountId);
         if (account == null || string.IsNullOrEmpty(account.SessionData)) 
         {
-            Console.WriteLine("Nalog ne postoji ili nema sacuvanu sesiju.");
             return;
         }
 
         using var playwright = await Playwright.CreateAsync();
-        
-        // Za probu ostavljamo Headless = false da bi ti video kako bot radi sam!
+        // Za sada je Headless = false da bi pratio šta se dešava
         await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
 
-        // Najbitniji deo: Ubacujemo TVOJE kolačiće iz baze pre nego što otvorimo prozor!
-        var contextOptions = new BrowserNewContextOptions
-        {
-            StorageState = account.SessionData
-        };
-        var context = await browser.NewContextAsync(contextOptions);
-        var page = await context.NewPageAsync();
+        var random = new Random();
+        // Neki osnovni pojmovi. Dodavaćemo brojeve na njih da uvek budu unikatni.
+        var baseWords = new[] { "Srbija", "Beograd", "Vesti", "Sport", "Filmovi", "Recepti", "Tehnologija", "Zanimljivosti", "Istorija", "Automobili", "Kompjuteri", "Muzika" };
+
+        Console.WriteLine("=== START: PC PRETRAGE ===");
+        
+        var desktopOptions = new BrowserNewContextOptions { StorageState = account.SessionData };
+        var desktopContext = await browser.NewContextAsync(desktopOptions);
+        var desktopPage = await desktopContext.NewPageAsync();
 
         try 
         {
-            await page.GotoAsync("https://www.bing.com");
-            
-            // Cekamo par sekundi da se ucita
-            await Task.Delay(3000);
-
-            // Radimo 3 random pretrage da bi dobili poene (simuliramo rad)
-            var pretrage = new[] { "Vremenska prognoza", "Najbolji restorani", "Kako radi Playwright" };
-
-            foreach(var termin in pretrage)
+            // Odradićemo 10 pretraga za test (pravi bot radi oko 30-35 za maksimum PC poena)
+            for(int i = 0; i < 10; i++)
             {
-                // Nalazimo polje za pretragu (name='q') i kucamo tekst
-                await page.FillAsync("[name='q']", termin);
-                await page.PressAsync("[name='q']", "Enter");
+                var term = baseWords[random.Next(baseWords.Length)] + " " + random.Next(1000, 99999);
+                await desktopPage.GotoAsync("https://www.bing.com");
+                await desktopPage.FillAsync("[name='q']", term);
+                await desktopPage.PressAsync("[name='q']", "Enter");
                 
-                // Čekamo da mreža prestane da učitava elemente
-                await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-                
-                // Pravimo se da čitamo rezultate 5 sekundi (zbog anti-bot zaštite)
-                await Task.Delay(5000); 
-                
-                // Vraćamo se na početnu
-                await page.GotoAsync("https://www.bing.com");
-                await Task.Delay(2000);
+                // Veoma važno: nasumična pauza između 5 i 12 sekundi (simulira ljudsko ponašanje)
+                await Task.Delay(random.Next(5000, 12000)); 
             }
 
-            // Opciono: Azuriramo SessionData jer Microsoft nekad osveži kolačiće
-            var newSessionState = await context.StorageStateAsync();
-            account.SessionData = newSessionState;
+            // Opciono azuriranje kolacica u slucaju da ih je Microsoft osvezio
+            account.SessionData = await desktopContext.StorageStateAsync();
             dbContext.Accounts.Update(account);
-            
             await dbContext.SaveChangesAsync();
         }
-        catch (Exception ex)
+        catch (Exception ex) { Console.WriteLine("Greska PC: " + ex.Message); }
+        finally { await desktopContext.CloseAsync(); }
+
+        Console.WriteLine("=== START: MOBILNE PRETRAGE ===");
+        
+        // Magija: Playwright sada glumi mobilni telefon (Pixel 5)
+        var mobileOptions = playwright.Devices["Pixel 5"];
+        mobileOptions.StorageState = account.SessionData; // Ucitava iste tvoje kolacice!
+        
+        var mobileContext = await browser.NewContextAsync(mobileOptions);
+        var mobilePage = await mobileContext.NewPageAsync();
+
+        try 
         {
-            Console.WriteLine("Greska pri botovanju: " + ex.Message);
+            // Odradićemo 5 pretraga za test (pravi bot radi oko 20 za max mobilnih poena)
+            for(int i = 0; i < 5; i++)
+            {
+                var term = baseWords[random.Next(baseWords.Length)] + " " + random.Next(1000, 99999);
+                await mobilePage.GotoAsync("https://www.bing.com");
+                await mobilePage.FillAsync("[name='q']", term);
+                await mobilePage.PressAsync("[name='q']", "Enter");
+                
+                await Task.Delay(random.Next(5000, 10000));
+            }
         }
-        finally
-        {
-            await browser.CloseAsync();
-        }
+        catch (Exception ex) { Console.WriteLine("Greska Mobilni: " + ex.Message); }
+        finally { await mobileContext.CloseAsync(); }
     }
 }

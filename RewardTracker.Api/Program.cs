@@ -31,6 +31,9 @@ builder.Services.AddCors(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 
+// Registrujemo Playwright servis
+builder.Services.AddScoped<RewardTracker.Infrastructure.Services.RewardAutomationService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -48,6 +51,13 @@ app.UseCors("AllowBlazorClient");
 app.MapControllers();
 
 // Ukljucujemo Hangfire Dashboard (UI)
-app.UseHangfireDashboard(/hangfire);
+app.UseHangfireDashboard("/hangfire");
+
+// Testna ruta za podizanje prozora
+app.MapGet("/api/test-browser", async (RewardTracker.Infrastructure.Services.RewardAutomationService service) => 
+{
+    await service.RunTestBrowserAsync();
+    return Results.Ok("Završeno");
+});
 
 app.Run();

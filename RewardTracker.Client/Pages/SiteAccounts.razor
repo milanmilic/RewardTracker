@@ -10,6 +10,13 @@
 
 <h3>Upravljanje nalozima</h3>
 
+@if (!string.IsNullOrEmpty(loginMessage))
+{
+    <div class="alert alert-info">
+        @loginMessage
+    </div>
+}
+
 <div class="card mb-4">
     <div class="card-body">
         <h5 class="card-title">Dodaj novi nalog</h5>
@@ -61,6 +68,7 @@
                         else { <span class="badge bg-secondary">Neaktivan</span> }
                     </td>
                     <td>
+                                                <button class="btn btn-sm btn-primary me-2" @onclick="() => StartLogin(acc.Id)">Uloguj se</button>
                         <button class="btn btn-sm btn-danger" @onclick="() => DeleteAccount(acc.Id)">Obriši</button>
                     </td>
                 </tr>
@@ -99,6 +107,18 @@
         }
     }
 
+        private string? loginMessage;
+
+    private async Task StartLogin(int id)
+    {
+        loginMessage = "Zahtev poslat! Proverite prozor pretraživača koji će se uskoro otvoriti. Imate 90 sekundi da se ulogujete.";
+        await Http.PostAsync($"api/accounts/{id}/login", null);
+        
+        // Prikazujemo poruku kratko pa sklanjamo
+        await Task.Delay(5000);
+        loginMessage = null;
+    }
+
     private async Task DeleteAccount(int id)
     {
         var response = await Http.DeleteAsync($"api/accounts/{id}");
@@ -113,3 +133,4 @@
         Navigation.NavigateTo("/admin");
     }
 }
+

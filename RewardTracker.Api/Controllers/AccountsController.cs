@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RewardTracker.Core.Entities;
 using RewardTracker.Infrastructure.Data;
+using Hangfire;
 
 namespace RewardTracker.Api.Controllers;
 
@@ -19,7 +20,6 @@ public class AccountsController : ControllerBase
     [HttpGet("site/{siteId}")]
     public async Task<ActionResult<IEnumerable<Account>>> GetAccountsBySite(int siteId)
     {
-        // Vracamo naloge vezane samo za trazeni sajt
         return await _context.Accounts.Where(a => a.RewardSiteId == siteId).ToListAsync();
     }
 
@@ -41,5 +41,13 @@ public class AccountsController : ControllerBase
         await _context.SaveChangesAsync();
 
         return NoContent();
+    }
+
+    // NOVA RUTA ZA LOGOVANJE
+    [HttpPost("{id}/login")]
+    public IActionResult StartLogin(int id, [FromServices] IBackgroundJobClient backgroundJobs)
+    {
+        backgroundJobs.Enqueue<RewardTracker.Infrastructure.Services.RewardAutomationService>(s => s.StartLoginSessionAsync(id));
+        return Ok();
     }
 }

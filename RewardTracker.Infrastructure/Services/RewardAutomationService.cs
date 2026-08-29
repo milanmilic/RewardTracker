@@ -94,7 +94,7 @@ public class RewardAutomationService
                         {
                             AccountId = account.Id,
                             Date = DateTime.UtcNow,
-                            TotalPoints = pts,
+                            TotalPointsAfter = pts,
                             PointsEarned = pts - account.CurrentPoints // Razlika od proslog puta
                         };
                         dbContext.PointLogs.Add(log);

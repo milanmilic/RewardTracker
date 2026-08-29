@@ -1,0 +1,115 @@
+@page "/admin/site/{SiteId:int}/accounts"
+@using RewardTracker.Core.Entities
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Nalozi</PageTitle>
+
+<button class="btn btn-secondary mb-3" @onclick="GoBack"><i class="bi bi-arrow-left"></i> Nazad na sajtove</button>
+
+<h3>Upravljanje nalozima</h3>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Dodaj novi nalog</h5>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label>Korisničko ime (Email):</label>
+                <input @bind="newAccount.Username" class="form-control" placeholder="npr. pera@outlook.com" />
+            </div>
+            <div class="col-md-6 mb-3 d-flex align-items-end">
+                <div class="form-check mb-2">
+                    <input @bind="newAccount.IsActive" type="checkbox" class="form-check-input" id="isActiveAcc">
+                    <label class="form-check-label" for="isActiveAcc">Aktivan</label>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-primary" @onclick="AddAccount">Sačuvaj nalog</button>
+    </div>
+</div>
+
+<table class="table table-hover table-striped shadow-sm">
+    <thead class="table-dark">
+        <tr>
+            <th>ID</th>
+            <th>Korisničko ime</th>
+            <th>Trenutno poena</th>
+            <th>Status</th>
+            <th>Akcije</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (accounts == null)
+        {
+            <tr><td colspan="5">Učitavanje...</td></tr>
+        }
+        else if (accounts.Count == 0)
+        {
+            <tr><td colspan="5" class="text-center">Nema unetih naloga za ovaj sajt.</td></tr>
+        }
+        else
+        {
+            @foreach (var acc in accounts)
+            {
+                <tr>
+                    <td>@acc.Id</td>
+                    <td><strong>@acc.Username</strong></td>
+                    <td>@acc.CurrentPoints</td>
+                    <td>
+                        @if (acc.IsActive) { <span class="badge bg-success">Aktivan</span> }
+                        else { <span class="badge bg-secondary">Neaktivan</span> }
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteAccount(acc.Id)">Obriši</button>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter] public int SiteId { get; set; }
+
+    private List<Account>? accounts;
+    private Account newAccount = new() { IsActive = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+    }
+
+    private async Task LoadAccounts()
+    {
+        accounts = await Http.GetFromJsonAsync<List<Account>>($"api/accounts/site/{SiteId}");
+    }
+
+    private async Task AddAccount()
+    {
+        if (!string.IsNullOrWhiteSpace(newAccount.Username))
+        {
+            newAccount.RewardSiteId = SiteId;
+            var response = await Http.PostAsJsonAsync("api/accounts", newAccount);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadAccounts();
+                newAccount = new() { IsActive = true };
+            }
+        }
+    }
+
+    private async Task DeleteAccount(int id)
+    {
+        var response = await Http.DeleteAsync($"api/accounts/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadAccounts();
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin");
+    }
+}

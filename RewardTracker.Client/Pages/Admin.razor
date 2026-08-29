@@ -101,7 +101,7 @@ else
 
     private async Task DeleteSite(int id)
     {
-        var response = await Http.DeleteAsync("api/rewardsites/$id");
+        var response = await Http.DeleteAsync($"api/rewardsites/{id}");
         if (response.IsSuccessStatusCode)
         {
             await LoadSites(); // Osvazi tabelu iz baze

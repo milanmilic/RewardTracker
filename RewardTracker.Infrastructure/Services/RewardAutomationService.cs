@@ -75,8 +75,17 @@ public class RewardAutomationService
             {
                 var jsonString = await response.TextAsync();
                 var json = JsonNode.Parse(jsonString);
-                
                 var counters = json?["dashboard"]?["userStatus"]?["counters"];
+                
+                // Čupamo ukupne poene da bismo ažurirali bazu i Blazor interfejs
+                var availablePoints = (int?)json?["dashboard"]?["userStatus"]?["availablePoints"];
+                if (availablePoints.HasValue)
+                {
+                    account.CurrentPoints = availablePoints.Value;
+                    dbContext.Accounts.Update(account);
+                    await dbContext.SaveChangesAsync();
+                }
+
                 if (counters != null)
                 {
                     // PC Pretrage

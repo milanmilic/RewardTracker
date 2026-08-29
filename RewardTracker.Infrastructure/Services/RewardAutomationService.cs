@@ -82,23 +82,13 @@ public class RewardAutomationService
             Console.WriteLine("=== CITANJE UKUPNIH POENA SA BING EKRANA ===");
             await Task.Delay(3000); 
 
-            // Sada NE IDEMO na rewards.bing.com jer te Microsoft tamo izbaci.
-            // Ostajemo tu gde jesmo (na www.bing.com) gde si video poene gore desno!
             var pointsText = await desktopPage.EvaluateAsync<string>(@"
                 () => {
-                    // Trazimo bilo koji link koji vodi ka rewards i ima broj u sebi
-                    var aTags = document.querySelectorAll('a');
-                    for(var i = 0; i < aTags.length; i++) {
-                        if(aTags[i].href.indexOf('rewards.bing.com') > -1 && aTags[i].innerText.match(/\d/)) {
-                            return aTags[i].innerText;
-                        }
-                    }
-                    // Ako to ne uspe, trazimo genericke id-jeve koje bing koristi za poene
-                    var rh = document.getElementById('id_rh');
-                    if (rh && rh.innerText.match(/\d/)) return rh.innerText;
+                    var el = document.querySelector('span.points-container');
+                    if (el) return el.innerText;
                     
-                    var rc = document.getElementById('id_rc');
-                    if (rc && rc.innerText.match(/\d/)) return rc.innerText;
+                    var backup = document.querySelector('[data-tag=""RewardsHeader.Counter""]');
+                    if (backup) return backup.innerText;
 
                     return '';
                 }

@@ -1,20 +1,30 @@
 using Microsoft.EntityFrameworkCore;
 using RewardTracker.Infrastructure.Data;
+using Hangfire;
+using Hangfire.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Dodajemo konfiguraciju baze iz appsettings.json
+// Baza
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Dodajemo CORS kako bi Blazor klijent (koji radi na drugom portu) mogao da gadja ovaj API
+// Hangfire konfiguracija
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
+
+// Pokrećemo server koji vrti poslove u pozadini
+builder.Services.AddHangfireServer();
+
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazorClient", policy =>
     {
-        policy.AllowAnyOrigin() // U produkciji ovde stavljamo tacan URL klijenta
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
     });
 });
 
@@ -23,12 +33,11 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     
-    // Automatsko pokretanje migracija (kreira bazu i tabele na startu)
+    // Automatska migracija
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
@@ -37,5 +46,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AllowBlazorClient");
 app.MapControllers();
+
+// Ukljucujemo Hangfire Dashboard (UI)
+app.UseHangfireDashboard(/hangfire);
 
 app.Run();

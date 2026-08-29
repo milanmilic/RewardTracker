@@ -2,6 +2,111 @@
   "version": 4,
   "targets": {
     "net10.0": {
+      "Dapper/2.0.123": {
+        "type": "package",
+        "compile": {
+          "lib/net5.0/Dapper.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0/Dapper.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Dapper.AOT/1.0.48": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/Dapper.AOT.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Dapper.AOT.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Hangfire.Core/1.8.0": {
+        "type": "package",
+        "dependencies": {
+          "Newtonsoft.Json": "11.0.1"
+        },
+        "compile": {
+          "lib/netstandard2.0/Hangfire.Core.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/Hangfire.Core.dll": {
+            "related": ".xml"
+          }
+        },
+        "resource": {
+          "lib/netstandard2.0/ca/Hangfire.Core.resources.dll": {
+            "locale": "ca"
+          },
+          "lib/netstandard2.0/de/Hangfire.Core.resources.dll": {
+            "locale": "de"
+          },
+          "lib/netstandard2.0/es/Hangfire.Core.resources.dll": {
+            "locale": "es"
+          },
+          "lib/netstandard2.0/fa/Hangfire.Core.resources.dll": {
+            "locale": "fa"
+          },
+          "lib/netstandard2.0/fr/Hangfire.Core.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/netstandard2.0/nb/Hangfire.Core.resources.dll": {
+            "locale": "nb"
+          },
+          "lib/netstandard2.0/nl/Hangfire.Core.resources.dll": {
+            "locale": "nl"
+          },
+          "lib/netstandard2.0/pt-BR/Hangfire.Core.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/netstandard2.0/pt-PT/Hangfire.Core.resources.dll": {
+            "locale": "pt-PT"
+          },
+          "lib/netstandard2.0/pt/Hangfire.Core.resources.dll": {
+            "locale": "pt"
+          },
+          "lib/netstandard2.0/sv/Hangfire.Core.resources.dll": {
+            "locale": "sv"
+          },
+          "lib/netstandard2.0/tr-TR/Hangfire.Core.resources.dll": {
+            "locale": "tr-TR"
+          },
+          "lib/netstandard2.0/zh-TW/Hangfire.Core.resources.dll": {
+            "locale": "zh-TW"
+          },
+          "lib/netstandard2.0/zh/Hangfire.Core.resources.dll": {
+            "locale": "zh"
+          }
+        }
+      },
+      "Hangfire.PostgreSql/1.21.1": {
+        "type": "package",
+        "dependencies": {
+          "Dapper": "2.0.123",
+          "Dapper.AOT": "1.0.48",
+          "Hangfire.Core": "1.8.0",
+          "Npgsql": "6.0.11"
+        },
+        "compile": {
+          "lib/netstandard2.0/Hangfire.PostgreSql.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/Hangfire.PostgreSql.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Humanizer.Core/2.14.1": {
         "type": "package",
         "compile": {
@@ -11,6 +116,19 @@
         },
         "runtime": {
           "lib/net6.0/Humanizer.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Microsoft.Bcl.AsyncInterfaces/6.0.0": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll": {
             "related": ".xml"
           }
         }
@@ -621,6 +739,26 @@
           "buildTransitive/net8.0/_._": {}
         }
       },
+      "Microsoft.Playwright/1.62.0": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Bcl.AsyncInterfaces": "6.0.0",
+          "System.ComponentModel.Annotations": "5.0.0"
+        },
+        "compile": {
+          "lib/netstandard2.0/Microsoft.Playwright.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.Playwright.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/Microsoft.Playwright.targets": {}
+        }
+      },
       "Microsoft.VisualStudio.SolutionPersistence/1.0.52": {
         "type": "package",
         "compile": {
@@ -652,7 +790,7 @@
       "Newtonsoft.Json/13.0.4": {
         "type": "package",
         "compile": {
-          "lib/net6.0/_._": {
+          "lib/net6.0/Newtonsoft.Json.dll": {
             "related": ".xml"
           }
         },
@@ -710,6 +848,19 @@
         },
         "build": {
           "buildTransitive/netcoreapp3.1/_._": {}
+        }
+      },
+      "System.ComponentModel.Annotations/5.0.0": {
+        "type": "package",
+        "compile": {
+          "ref/netstandard2.1/System.ComponentModel.Annotations.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/System.ComponentModel.Annotations.dll": {
+            "related": ".xml"
+          }
         }
       },
       "System.Composition/9.0.0": {
@@ -835,6 +986,144 @@
     }
   },
   "libraries": {
+    "Dapper/2.0.123": {
+      "sha512": "RDFF4rBLLmbpi6pwkY7q/M6UXHRJEOerplDGE5jwEkP/JGJnBauAClYavNKJPW1yOTWRPIyfj4is3EaJxQXILQ==",
+      "type": "package",
+      "path": "dapper/2.0.123",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Dapper.png",
+        "dapper.2.0.123.nupkg.sha512",
+        "dapper.nuspec",
+        "lib/net461/Dapper.dll",
+        "lib/net461/Dapper.xml",
+        "lib/net5.0/Dapper.dll",
+        "lib/net5.0/Dapper.xml",
+        "lib/netstandard2.0/Dapper.dll",
+        "lib/netstandard2.0/Dapper.xml"
+      ]
+    },
+    "Dapper.AOT/1.0.48": {
+      "sha512": "rsLM3yKr4g+YKKox9lhc8D+kz67P7Q9+xdyn1LmCsoYr1kYpJSm+Nt6slo5UrfUrcTiGJ57zUlyO8XUdV7G7iA==",
+      "type": "package",
+      "path": "dapper.aot/1.0.48",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Dapper.png",
+        "analyzers/dotnet/Dapper.AOT.Analyzers.dll",
+        "analyzers/dotnet/Microsoft.SqlServer.TransactSql.ScriptDom.dll",
+        "dapper.aot.1.0.48.nupkg.sha512",
+        "dapper.aot.nuspec",
+        "lib/net48/Dapper.AOT.dll",
+        "lib/net48/Dapper.AOT.xml",
+        "lib/net6.0/Dapper.AOT.dll",
+        "lib/net6.0/Dapper.AOT.xml",
+        "lib/net8.0/Dapper.AOT.dll",
+        "lib/net8.0/Dapper.AOT.xml",
+        "lib/netcoreapp3.1/Dapper.AOT.dll",
+        "lib/netcoreapp3.1/Dapper.AOT.xml",
+        "lib/netstandard2.0/Dapper.AOT.dll",
+        "lib/netstandard2.0/Dapper.AOT.xml",
+        "readme.md"
+      ]
+    },
+    "Hangfire.Core/1.8.0": {
+      "sha512": "YyQwi1iKCS4HsKnwUhY5dcyxOeJ0MqA/0gjeTJdMsCXufKl73I+y8mS5MbvQBIKMGcjv0FYzjLA+v31P6G+CRw==",
+      "type": "package",
+      "path": "hangfire.core/1.8.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "COPYING",
+        "COPYING.LESSER",
+        "LICENSE.md",
+        "LICENSE_ROYALTYFREE",
+        "LICENSE_STANDARD",
+        "NOTICES",
+        "hangfire.core.1.8.0.nupkg.sha512",
+        "hangfire.core.nuspec",
+        "lib/net451/Hangfire.Core.dll",
+        "lib/net451/Hangfire.Core.xml",
+        "lib/net451/ca/Hangfire.Core.resources.dll",
+        "lib/net451/de/Hangfire.Core.resources.dll",
+        "lib/net451/es/Hangfire.Core.resources.dll",
+        "lib/net451/fa/Hangfire.Core.resources.dll",
+        "lib/net451/fr/Hangfire.Core.resources.dll",
+        "lib/net451/nb/Hangfire.Core.resources.dll",
+        "lib/net451/nl/Hangfire.Core.resources.dll",
+        "lib/net451/pt-BR/Hangfire.Core.resources.dll",
+        "lib/net451/pt-PT/Hangfire.Core.resources.dll",
+        "lib/net451/pt/Hangfire.Core.resources.dll",
+        "lib/net451/sv/Hangfire.Core.resources.dll",
+        "lib/net451/tr-TR/Hangfire.Core.resources.dll",
+        "lib/net451/zh-TW/Hangfire.Core.resources.dll",
+        "lib/net451/zh/Hangfire.Core.resources.dll",
+        "lib/net46/Hangfire.Core.dll",
+        "lib/net46/Hangfire.Core.xml",
+        "lib/net46/ca/Hangfire.Core.resources.dll",
+        "lib/net46/de/Hangfire.Core.resources.dll",
+        "lib/net46/es/Hangfire.Core.resources.dll",
+        "lib/net46/fa/Hangfire.Core.resources.dll",
+        "lib/net46/fr/Hangfire.Core.resources.dll",
+        "lib/net46/nb/Hangfire.Core.resources.dll",
+        "lib/net46/nl/Hangfire.Core.resources.dll",
+        "lib/net46/pt-BR/Hangfire.Core.resources.dll",
+        "lib/net46/pt-PT/Hangfire.Core.resources.dll",
+        "lib/net46/pt/Hangfire.Core.resources.dll",
+        "lib/net46/sv/Hangfire.Core.resources.dll",
+        "lib/net46/tr-TR/Hangfire.Core.resources.dll",
+        "lib/net46/zh-TW/Hangfire.Core.resources.dll",
+        "lib/net46/zh/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/Hangfire.Core.dll",
+        "lib/netstandard1.3/Hangfire.Core.xml",
+        "lib/netstandard1.3/ca/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/de/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/es/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/fa/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/fr/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/nb/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/nl/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/pt-BR/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/pt-PT/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/pt/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/sv/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/tr-TR/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/zh-TW/Hangfire.Core.resources.dll",
+        "lib/netstandard1.3/zh/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/Hangfire.Core.dll",
+        "lib/netstandard2.0/Hangfire.Core.xml",
+        "lib/netstandard2.0/ca/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/de/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/es/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/fa/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/fr/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/nb/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/nl/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/pt-BR/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/pt-PT/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/pt/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/sv/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/tr-TR/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/zh-TW/Hangfire.Core.resources.dll",
+        "lib/netstandard2.0/zh/Hangfire.Core.resources.dll"
+      ]
+    },
+    "Hangfire.PostgreSql/1.21.1": {
+      "sha512": "hFNZAxv+1p72/XCZdImnH6ovCzZ2DKAMTOI8CReT0P3yw/k0b0YJP2teA18agNH1ZYInPzhtxGk8hx5n2cxbbQ==",
+      "type": "package",
+      "path": "hangfire.postgresql/1.21.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.md",
+        "hangfire.postgresql.1.21.1.nupkg.sha512",
+        "hangfire.postgresql.nuspec",
+        "lib/netstandard2.0/Hangfire.PostgreSql.dll",
+        "lib/netstandard2.0/Hangfire.PostgreSql.xml"
+      ]
+    },
     "Humanizer.Core/2.14.1": {
       "sha512": "lQKvtaTDOXnoVJ20ibTuSIOf2i0uO0MPbDhd1jm238I+U/2ZnRENj0cktKZhtchBMtCUSRQ5v4xBCUbKNmyVMw==",
       "type": "package",
@@ -851,6 +1140,27 @@
         "lib/netstandard2.0/Humanizer.dll",
         "lib/netstandard2.0/Humanizer.xml",
         "logo.png"
+      ]
+    },
+    "Microsoft.Bcl.AsyncInterfaces/6.0.0": {
+      "sha512": "UcSjPsst+DfAdJGVDsu346FX0ci0ah+lw3WRtn18NUwEqRt70HaOQ7lI72vy3+1LxtqI3T5GWwV39rQSrCzAeg==",
+      "type": "package",
+      "path": "microsoft.bcl.asyncinterfaces/6.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "THIRD-PARTY-NOTICES.TXT",
+        "lib/net461/Microsoft.Bcl.AsyncInterfaces.dll",
+        "lib/net461/Microsoft.Bcl.AsyncInterfaces.xml",
+        "lib/netstandard2.0/Microsoft.Bcl.AsyncInterfaces.dll",
+        "lib/netstandard2.0/Microsoft.Bcl.AsyncInterfaces.xml",
+        "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll",
+        "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.xml",
+        "microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512",
+        "microsoft.bcl.asyncinterfaces.nuspec",
+        "useSharedDesignerContext.txt"
       ]
     },
     "Microsoft.Build.Framework/18.0.2": {
@@ -2366,6 +2676,142 @@
         "useSharedDesignerContext.txt"
       ]
     },
+    "Microsoft.Playwright/1.62.0": {
+      "sha512": "cos6dmHPcMpS6bXw2WEgoXb8KXwMhs3c5L0P/cUf2rdUpjVA3g3u+KiSpVp2VCzsXymRpy2tFHqm+Wnz7s5VhQ==",
+      "type": "package",
+      "path": "microsoft.playwright/1.62.0",
+      "files": [
+        ".nupkg.metadata",
+        ".playwright/node/LICENSE",
+        ".playwright/node/darwin-arm64/node",
+        ".playwright/node/darwin-x64/node",
+        ".playwright/node/linux-arm64/node",
+        ".playwright/node/linux-x64/node",
+        ".playwright/node/win32_x64/node.exe",
+        ".playwright/package/LICENSE",
+        ".playwright/package/NOTICE",
+        ".playwright/package/README.md",
+        ".playwright/package/ThirdPartyNotices.txt",
+        ".playwright/package/bin/install_media_pack.ps1",
+        ".playwright/package/bin/install_webkit_wsl.ps1",
+        ".playwright/package/bin/reinstall_chrome_beta_linux.sh",
+        ".playwright/package/bin/reinstall_chrome_beta_mac.sh",
+        ".playwright/package/bin/reinstall_chrome_beta_win.ps1",
+        ".playwright/package/bin/reinstall_chrome_stable_linux.sh",
+        ".playwright/package/bin/reinstall_chrome_stable_mac.sh",
+        ".playwright/package/bin/reinstall_chrome_stable_win.ps1",
+        ".playwright/package/bin/reinstall_msedge_beta_linux.sh",
+        ".playwright/package/bin/reinstall_msedge_beta_mac.sh",
+        ".playwright/package/bin/reinstall_msedge_beta_win.ps1",
+        ".playwright/package/bin/reinstall_msedge_dev_linux.sh",
+        ".playwright/package/bin/reinstall_msedge_dev_mac.sh",
+        ".playwright/package/bin/reinstall_msedge_dev_win.ps1",
+        ".playwright/package/bin/reinstall_msedge_stable_linux.sh",
+        ".playwright/package/bin/reinstall_msedge_stable_mac.sh",
+        ".playwright/package/bin/reinstall_msedge_stable_win.ps1",
+        ".playwright/package/browsers.json",
+        ".playwright/package/cli.js",
+        ".playwright/package/index.d.ts",
+        ".playwright/package/index.js",
+        ".playwright/package/index.mjs",
+        ".playwright/package/lib/bootstrap.js",
+        ".playwright/package/lib/coreBundle.js",
+        ".playwright/package/lib/entry/cliDaemon.js",
+        ".playwright/package/lib/entry/dashboardApp.js",
+        ".playwright/package/lib/entry/mcp.js",
+        ".playwright/package/lib/entry/oopBrowserDownload.js",
+        ".playwright/package/lib/package.js",
+        ".playwright/package/lib/server/chromium/appIcon.png",
+        ".playwright/package/lib/server/electron/loader.js",
+        ".playwright/package/lib/serverRegistry.js",
+        ".playwright/package/lib/serverRegistry.js.LICENSE",
+        ".playwright/package/lib/tools/cli-client/channelSessions.js",
+        ".playwright/package/lib/tools/cli-client/cli.js",
+        ".playwright/package/lib/tools/cli-client/help.json",
+        ".playwright/package/lib/tools/cli-client/minimist.js",
+        ".playwright/package/lib/tools/cli-client/output.js",
+        ".playwright/package/lib/tools/cli-client/program.js",
+        ".playwright/package/lib/tools/cli-client/registry.js",
+        ".playwright/package/lib/tools/cli-client/session.js",
+        ".playwright/package/lib/tools/dashboard/appIcon.png",
+        ".playwright/package/lib/tools/skills/playwright-cli/SKILL.md",
+        ".playwright/package/lib/tools/skills/playwright-cli/references/element-attributes.md",
+        ".playwright/package/lib/tools/skills/playwright-cli/references/playwright-tests.md",
+        ".playwright/package/lib/tools/skills/playwright-cli/references/request-mocking.md",
+        ".playwright/package/lib/tools/skills/playwright-cli/references/running-code.md",
+        ".playwright/package/lib/tools/skills/playwright-cli/references/session-management.md",
+        ".playwright/package/lib/tools/skills/playwright-cli/references/storage-state.md",
+        ".playwright/package/lib/tools/skills/playwright-cli/references/test-generation.md",
+        ".playwright/package/lib/tools/skills/playwright-cli/references/tracing.md",
+        ".playwright/package/lib/tools/skills/playwright-cli/references/video-recording.md",
+        ".playwright/package/lib/tools/skills/playwright-component-testing/SKILL.md",
+        ".playwright/package/lib/tools/skills/playwright-component-testing/references/gallery-spec.md",
+        ".playwright/package/lib/tools/skills/playwright-component-testing/references/migration.md",
+        ".playwright/package/lib/tools/skills/playwright-component-testing/references/react.md",
+        ".playwright/package/lib/tools/skills/playwright-component-testing/references/vue.md",
+        ".playwright/package/lib/tools/skills/playwright-trace/SKILL.md",
+        ".playwright/package/lib/tools/utils/extension.js",
+        ".playwright/package/lib/tools/utils/socketConnection.js",
+        ".playwright/package/lib/utilsBundle.js",
+        ".playwright/package/lib/utilsBundle.js.LICENSE",
+        ".playwright/package/lib/vite/dashboard/assets/codicon-DCmgc-ay.ttf",
+        ".playwright/package/lib/vite/dashboard/assets/firefox-1bWoP6pv.svg",
+        ".playwright/package/lib/vite/dashboard/assets/firefox-beta-k3eOH_eK.svg",
+        ".playwright/package/lib/vite/dashboard/assets/firefox-nightly-Cp5nfeDT.svg",
+        ".playwright/package/lib/vite/dashboard/assets/index-CyWAfh-p.js",
+        ".playwright/package/lib/vite/dashboard/assets/index-DhC616m4.css",
+        ".playwright/package/lib/vite/dashboard/assets/safari-na3_-uQk.svg",
+        ".playwright/package/lib/vite/dashboard/index.html",
+        ".playwright/package/lib/vite/dashboard/playwright-logo.svg",
+        ".playwright/package/lib/vite/htmlReport/index.html",
+        ".playwright/package/lib/vite/htmlReport/report.css",
+        ".playwright/package/lib/vite/htmlReport/report.js",
+        ".playwright/package/lib/vite/recorder/assets/codeMirrorModule--QdMvsKi.css",
+        ".playwright/package/lib/vite/recorder/assets/codeMirrorModule-CwYYHbcZ.js",
+        ".playwright/package/lib/vite/recorder/assets/codicon-DCmgc-ay.ttf",
+        ".playwright/package/lib/vite/recorder/assets/index-DYjdXIbE.js",
+        ".playwright/package/lib/vite/recorder/assets/index-l_lX622x.css",
+        ".playwright/package/lib/vite/recorder/index.html",
+        ".playwright/package/lib/vite/recorder/playwright-logo.svg",
+        ".playwright/package/lib/vite/traceViewer/assets/codeMirrorModule-By56iMx7.js",
+        ".playwright/package/lib/vite/traceViewer/assets/defaultSettingsView-B34OrIms.js",
+        ".playwright/package/lib/vite/traceViewer/assets/urlMatch-L3liM589.js",
+        ".playwright/package/lib/vite/traceViewer/assets/xtermModule-COQkjINf.js",
+        ".playwright/package/lib/vite/traceViewer/codeMirrorModule.-QdMvsKi.css",
+        ".playwright/package/lib/vite/traceViewer/codicon.DCmgc-ay.ttf",
+        ".playwright/package/lib/vite/traceViewer/defaultSettingsView.BLFoOugd.css",
+        ".playwright/package/lib/vite/traceViewer/index.B_TqY17P.css",
+        ".playwright/package/lib/vite/traceViewer/index.Dl36UVQT.js",
+        ".playwright/package/lib/vite/traceViewer/index.html",
+        ".playwright/package/lib/vite/traceViewer/manifest.webmanifest",
+        ".playwright/package/lib/vite/traceViewer/playwright-logo.svg",
+        ".playwright/package/lib/vite/traceViewer/snapshot.B_Jk1wbt.js",
+        ".playwright/package/lib/vite/traceViewer/snapshot.html",
+        ".playwright/package/lib/vite/traceViewer/sw.bundle.js",
+        ".playwright/package/lib/vite/traceViewer/uiMode.C7UW1sC9.css",
+        ".playwright/package/lib/vite/traceViewer/uiMode.D962mr9b.js",
+        ".playwright/package/lib/vite/traceViewer/uiMode.html",
+        ".playwright/package/lib/vite/traceViewer/xtermModule.kHJ-D0s7.css",
+        ".playwright/package/lib/webp_codec.LICENSE",
+        ".playwright/package/lib/webp_codec.wasm",
+        ".playwright/package/lib/xdg-open",
+        ".playwright/package/package.json",
+        ".playwright/package/types/protocol.d.ts",
+        ".playwright/package/types/structs.d.ts",
+        ".playwright/package/types/types.d.ts",
+        ".signature.p7s",
+        "README.md",
+        "build/Microsoft.Playwright.targets",
+        "build/playwright.ps1",
+        "buildTransitive/Microsoft.Playwright.targets",
+        "buildTransitive/playwright.ps1",
+        "icon.png",
+        "lib/netstandard2.0/Microsoft.Playwright.dll",
+        "lib/netstandard2.0/Microsoft.Playwright.xml",
+        "microsoft.playwright.1.62.0.nupkg.sha512",
+        "microsoft.playwright.nuspec"
+      ]
+    },
     "Microsoft.VisualStudio.SolutionPersistence/1.0.52": {
       "sha512": "oNv2JtYXhpdJrX63nibx1JT3uCESOBQ1LAk7Dtz/sr0+laW0KRM6eKp4CZ3MHDR2siIkKsY8MmUkeP5DKkQQ5w==",
       "type": "package",
@@ -2486,6 +2932,96 @@
         "system.codedom.6.0.0.nupkg.sha512",
         "system.codedom.nuspec",
         "useSharedDesignerContext.txt"
+      ]
+    },
+    "System.ComponentModel.Annotations/5.0.0": {
+      "sha512": "dMkqfy2el8A8/I76n2Hi1oBFEbG1SfxD2l5nhwXV3XjlnOmwxJlQbYpJH4W51odnU9sARCSAgv7S3CyAFMkpYg==",
+      "type": "package",
+      "path": "system.componentmodel.annotations/5.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "THIRD-PARTY-NOTICES.TXT",
+        "lib/MonoAndroid10/_._",
+        "lib/MonoTouch10/_._",
+        "lib/net45/_._",
+        "lib/net461/System.ComponentModel.Annotations.dll",
+        "lib/netcore50/System.ComponentModel.Annotations.dll",
+        "lib/netstandard1.4/System.ComponentModel.Annotations.dll",
+        "lib/netstandard2.0/System.ComponentModel.Annotations.dll",
+        "lib/netstandard2.1/System.ComponentModel.Annotations.dll",
+        "lib/netstandard2.1/System.ComponentModel.Annotations.xml",
+        "lib/portable-net45+win8/_._",
+        "lib/win8/_._",
+        "lib/xamarinios10/_._",
+        "lib/xamarinmac20/_._",
+        "lib/xamarintvos10/_._",
+        "lib/xamarinwatchos10/_._",
+        "ref/MonoAndroid10/_._",
+        "ref/MonoTouch10/_._",
+        "ref/net45/_._",
+        "ref/net461/System.ComponentModel.Annotations.dll",
+        "ref/net461/System.ComponentModel.Annotations.xml",
+        "ref/netcore50/System.ComponentModel.Annotations.dll",
+        "ref/netcore50/System.ComponentModel.Annotations.xml",
+        "ref/netcore50/de/System.ComponentModel.Annotations.xml",
+        "ref/netcore50/es/System.ComponentModel.Annotations.xml",
+        "ref/netcore50/fr/System.ComponentModel.Annotations.xml",
+        "ref/netcore50/it/System.ComponentModel.Annotations.xml",
+        "ref/netcore50/ja/System.ComponentModel.Annotations.xml",
+        "ref/netcore50/ko/System.ComponentModel.Annotations.xml",
+        "ref/netcore50/ru/System.ComponentModel.Annotations.xml",
+        "ref/netcore50/zh-hans/System.ComponentModel.Annotations.xml",
+        "ref/netcore50/zh-hant/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.1/System.ComponentModel.Annotations.dll",
+        "ref/netstandard1.1/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.1/de/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.1/es/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.1/fr/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.1/it/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.1/ja/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.1/ko/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.1/ru/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.1/zh-hans/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.1/zh-hant/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.3/System.ComponentModel.Annotations.dll",
+        "ref/netstandard1.3/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.3/de/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.3/es/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.3/fr/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.3/it/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.3/ja/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.3/ko/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.3/ru/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.3/zh-hans/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.3/zh-hant/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.4/System.ComponentModel.Annotations.dll",
+        "ref/netstandard1.4/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.4/de/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.4/es/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.4/fr/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.4/it/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.4/ja/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.4/ko/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.4/ru/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.4/zh-hans/System.ComponentModel.Annotations.xml",
+        "ref/netstandard1.4/zh-hant/System.ComponentModel.Annotations.xml",
+        "ref/netstandard2.0/System.ComponentModel.Annotations.dll",
+        "ref/netstandard2.0/System.ComponentModel.Annotations.xml",
+        "ref/netstandard2.1/System.ComponentModel.Annotations.dll",
+        "ref/netstandard2.1/System.ComponentModel.Annotations.xml",
+        "ref/portable-net45+win8/_._",
+        "ref/win8/_._",
+        "ref/xamarinios10/_._",
+        "ref/xamarinmac20/_._",
+        "ref/xamarintvos10/_._",
+        "ref/xamarinwatchos10/_._",
+        "system.componentmodel.annotations.5.0.0.nupkg.sha512",
+        "system.componentmodel.annotations.nuspec",
+        "useSharedDesignerContext.txt",
+        "version.txt"
       ]
     },
     "System.Composition/9.0.0": {
@@ -2659,8 +3195,10 @@
   },
   "projectFileDependencyGroups": {
     "net10.0": [
+      "Hangfire.PostgreSql >= 1.21.1",
       "Microsoft.EntityFrameworkCore >= 10.0.11",
       "Microsoft.EntityFrameworkCore.Design >= 10.0.11",
+      "Microsoft.Playwright >= 1.62.0",
       "Npgsql.EntityFrameworkCore.PostgreSQL >= 10.0.3",
       "RewardTracker.Core >= 1.0.0"
     ]
@@ -2722,6 +3260,10 @@
         "framework": "net10.0",
         "targetAlias": "net10.0",
         "dependencies": {
+          "Hangfire.PostgreSql": {
+            "target": "Package",
+            "version": "[1.21.1, )"
+          },
           "Microsoft.EntityFrameworkCore": {
             "target": "Package",
             "version": "[10.0.11, )"
@@ -2731,6 +3273,10 @@
             "suppressParent": "All",
             "target": "Package",
             "version": "[10.0.11, )"
+          },
+          "Microsoft.Playwright": {
+            "target": "Package",
+            "version": "[1.62.0, )"
           },
           "Npgsql.EntityFrameworkCore.PostgreSQL": {
             "target": "Package",

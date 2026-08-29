@@ -60,6 +60,10 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
+            "Hangfire.AspNetCore": {
+              "target": "Package",
+              "version": "[1.8.25, )"
+            },
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
               "version": "[10.0.11, )"
@@ -903,6 +907,10 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
+            "Hangfire.PostgreSql": {
+              "target": "Package",
+              "version": "[1.21.1, )"
+            },
             "Microsoft.EntityFrameworkCore": {
               "target": "Package",
               "version": "[10.0.11, )"
@@ -912,6 +920,10 @@
               "suppressParent": "All",
               "target": "Package",
               "version": "[10.0.11, )"
+            },
+            "Microsoft.Playwright": {
+              "target": "Package",
+              "version": "[1.62.0, )"
             },
             "Npgsql.EntityFrameworkCore.PostgreSQL": {
               "target": "Package",

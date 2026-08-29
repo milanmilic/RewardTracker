@@ -85,7 +85,7 @@ public class RewardAutomationService
             await Task.Delay(4000); 
 
             var html = await desktopPage.ContentAsync();
-            var match = Regex.Match(html, ""availablePoints"\s*:\s*(\d+)");
+            var match = Regex.Match(html, @"""availablePoints""\s*:\s*(\d+)");
 
             if (match.Success)
             {

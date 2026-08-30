@@ -208,3 +208,4 @@ public class RewardAutomationService
         Console.WriteLine("=== BOT JE ZAVRSIO SA RADOM ===");
     }
 }
+

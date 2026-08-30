@@ -77,24 +77,13 @@ public class RewardAutomationService
         var random = new Random();
         var baseWords = new[] { "Srbija", "Beograd", "Vesti", "Sport", "Filmovi", "Recepti", "Tehnologija", "Zanimljivosti", "Istorija", "Automobili", "Kompjuteri", "Muzika", "Klima", "Putovanja", "Fizika", "Astronomija", "Planete", "Ekonomija", "Zdravlje", "Trening", "Ishrana", "Programiranje", "Arhitektura" };
 
-        Console.WriteLine("=== START: BING PRETRAGE (Optimizovano) ===");
         var desktopOptions = new BrowserNewContextOptions { StorageState = account.SessionData };
         var desktopContext = await browser.NewContextAsync(desktopOptions);
         var desktopPage = await desktopContext.NewPageAsync();
 
         try 
         {
-            for(int i = 0; i < 25; i++)
-            {
-                var term = baseWords[random.Next(baseWords.Length)] + " " + baseWords[random.Next(baseWords.Length)] + " " + random.Next(100, 9999);
-                await desktopPage.GotoAsync("https://www.bing.com");
-                await Task.Delay(2000);
-                var searchInput = desktopPage.Locator("[name='q']").First;
-                await searchInput.FillAsync(term, new() { Force = true });
-                await searchInput.PressAsync("Enter");
-                await Task.Delay(random.Next(4000, 10000)); 
-            }
-
+            // 1. PRVO KLIKANJE DAILY SET KARTICA (Za brze testiranje)
             Console.WriteLine("=== START: KLIKANJE DAILY SET KARTICA ===");
             try
             {
@@ -107,7 +96,6 @@ public class RewardAutomationService
                 await searchInput.PressAsync("Enter");
                 await Task.Delay(4000);
                 
-                // Klikni na organski rezultat koji vodi ka rewards.bing.com
                 var rewardsLink = desktopPage.Locator("a[href*='rewards.bing.com']").First;
                 await rewardsLink.ClickAsync();
                 
@@ -156,6 +144,20 @@ public class RewardAutomationService
                 Console.WriteLine("Nisam uspeo da zavrsim Daily Set zadatke: " + ex.Message);
             }
 
+            // 2. ONDA BING PRETRAGE
+            Console.WriteLine("=== START: BING PRETRAGE (Optimizovano) ===");
+            for(int i = 0; i < 25; i++)
+            {
+                var term = baseWords[random.Next(baseWords.Length)] + " " + baseWords[random.Next(baseWords.Length)] + " " + random.Next(100, 9999);
+                await desktopPage.GotoAsync("https://www.bing.com");
+                await Task.Delay(2000);
+                var searchInput = desktopPage.Locator("[name='q']").First;
+                await searchInput.FillAsync(term, new() { Force = true });
+                await searchInput.PressAsync("Enter");
+                await Task.Delay(random.Next(4000, 10000)); 
+            }
+
+            // 3. CITANJE POENA
             Console.WriteLine("=== CITANJE UKUPNIH POENA SA BING EKRANA ===");
             await desktopPage.GotoAsync("https://www.bing.com");
             await Task.Delay(4000); 

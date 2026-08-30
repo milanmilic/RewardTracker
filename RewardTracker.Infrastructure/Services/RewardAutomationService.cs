@@ -98,26 +98,22 @@ public class RewardAutomationService
             Console.WriteLine("=== START: KLIKANJE DAILY SET KARTICA ===");
             try
             {
-                // Koristimo organski klik na ikonicu da prevarimo bot detekciju!
+                Console.WriteLine("Ulazak na Dashboard preko Bing pretrage (anti-bot tehnika)...");
                 await desktopPage.GotoAsync("https://www.bing.com");
-                await Task.Delay(3000);
+                await Task.Delay(2000);
                 
-                Console.WriteLine("Pokusavam da udjem na Rewards Dashboard organski...");
-                // Klikni na link ka rewards dashboard-u
-                await desktopPage.EvaluateAsync(@"() => { 
-                    var aTags = document.querySelectorAll('a');
-                    for(var i = 0; i < aTags.length; i++) {
-                        if(aTags[i].href.indexOf('rewards.bing.com') > -1) {
-                            aTags[i].click();
-                            return;
-                        }
-                    }
-                }");
+                var searchInput = desktopPage.Locator("[name='q']").First;
+                await searchInput.FillAsync("Microsoft Rewards", new() { Force = true });
+                await searchInput.PressAsync("Enter");
+                await Task.Delay(4000);
                 
-                // Sacekaj da se ucita rewards dashboard (Angular aplikacija)
-                await Task.Delay(8000); 
+                // Klikni na organski rezultat koji vodi ka rewards.bing.com
+                var rewardsLink = desktopPage.Locator("a[href*='rewards.bing.com']").First;
+                await rewardsLink.ClickAsync();
+                
+                Console.WriteLine("Cekamo ucitavanje Rewards Dashboard-a...");
+                await Task.Delay(10000); 
 
-                // Nalazimo sve linkove zadataka sa Dashboard-a
                 var taskLinks = await desktopPage.EvaluateAsync<List<string>>(@"() => {
                     var selectors = [
                         'mee-rewards-daily-set-item-content a',
@@ -142,10 +138,9 @@ public class RewardAutomationService
                 {
                     try
                     {
-                        Console.WriteLine("Otvaram zadatak: " + link.Substring(0, Math.Min(50, link.Length)) + "...");
+                        Console.WriteLine("Otvaram zadatak u novom tabu...");
                         var taskPage = await desktopContext.NewPageAsync();
                         await taskPage.GotoAsync(link);
-                        // Čekamo 6-10 sekundi da Microsoft registruje da smo 'pročitali' stranu
                         await Task.Delay(random.Next(6000, 10000));
                         await taskPage.CloseAsync();
                         await Task.Delay(2000);
@@ -208,4 +203,3 @@ public class RewardAutomationService
         Console.WriteLine("=== BOT JE ZAVRSIO SA RADOM ===");
     }
 }
-

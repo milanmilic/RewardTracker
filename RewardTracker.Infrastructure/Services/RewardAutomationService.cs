@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System;
 using System.Text.RegularExpressions;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace RewardTracker.Infrastructure.Services;
 
@@ -76,30 +77,93 @@ public class RewardAutomationService
         var random = new Random();
         var baseWords = new[] { "Srbija", "Beograd", "Vesti", "Sport", "Filmovi", "Recepti", "Tehnologija", "Zanimljivosti", "Istorija", "Automobili", "Kompjuteri", "Muzika", "Klima", "Putovanja", "Fizika", "Astronomija", "Planete", "Ekonomija", "Zdravlje", "Trening", "Ishrana", "Programiranje", "Arhitektura" };
 
-        Console.WriteLine("=== START: BING PRETRAGE (Optimizovano za Srbiju) ===");
+        Console.WriteLine("=== START: BING PRETRAGE (Optimizovano) ===");
         var desktopOptions = new BrowserNewContextOptions { StorageState = account.SessionData };
         var desktopContext = await browser.NewContextAsync(desktopOptions);
         var desktopPage = await desktopContext.NewPageAsync();
 
         try 
         {
-            // Smanjeno na 25 pretraga ukupno (Dovoljno za 60 poena = 20 pretraga + malo bafera)
             for(int i = 0; i < 25; i++)
             {
                 var term = baseWords[random.Next(baseWords.Length)] + " " + baseWords[random.Next(baseWords.Length)] + " " + random.Next(100, 9999);
                 await desktopPage.GotoAsync("https://www.bing.com");
-                
                 await Task.Delay(2000);
-                
                 var searchInput = desktopPage.Locator("[name='q']").First;
                 await searchInput.FillAsync(term, new() { Force = true });
                 await searchInput.PressAsync("Enter");
-                
                 await Task.Delay(random.Next(4000, 10000)); 
             }
 
+            Console.WriteLine("=== START: KLIKANJE DAILY SET KARTICA ===");
+            try
+            {
+                // Koristimo organski klik na ikonicu da prevarimo bot detekciju!
+                await desktopPage.GotoAsync("https://www.bing.com");
+                await Task.Delay(3000);
+                
+                Console.WriteLine("Pokusavam da udjem na Rewards Dashboard organski...");
+                // Klikni na link ka rewards dashboard-u
+                await desktopPage.EvaluateAsync(@"() => { 
+                    var aTags = document.querySelectorAll('a');
+                    for(var i = 0; i < aTags.length; i++) {
+                        if(aTags[i].href.indexOf('rewards.bing.com') > -1) {
+                            aTags[i].click();
+                            return;
+                        }
+                    }
+                }");
+                
+                // Sacekaj da se ucita rewards dashboard (Angular aplikacija)
+                await Task.Delay(8000); 
+
+                // Nalazimo sve linkove zadataka sa Dashboard-a
+                var taskLinks = await desktopPage.EvaluateAsync<List<string>>(@"() => {
+                    var selectors = [
+                        'mee-rewards-daily-set-item-content a',
+                        'mee-rewards-more-activities-card-item a',
+                        '.ds-card-sec a',
+                        '.c-card'
+                    ];
+                    var links = [];
+                    selectors.forEach(sel => {
+                        document.querySelectorAll(sel).forEach(el => {
+                            if (el.href && el.href.startsWith('http') && links.indexOf(el.href) === -1) {
+                                links.push(el.href);
+                            }
+                        });
+                    });
+                    return links;
+                }");
+
+                Console.WriteLine("Pronasao sam " + taskLinks.Count + " zadataka (kartica) na dashboardu.");
+
+                foreach (var link in taskLinks)
+                {
+                    try
+                    {
+                        Console.WriteLine("Otvaram zadatak: " + link.Substring(0, Math.Min(50, link.Length)) + "...");
+                        var taskPage = await desktopContext.NewPageAsync();
+                        await taskPage.GotoAsync(link);
+                        // Čekamo 6-10 sekundi da Microsoft registruje da smo 'pročitali' stranu
+                        await Task.Delay(random.Next(6000, 10000));
+                        await taskPage.CloseAsync();
+                        await Task.Delay(2000);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Greska pri otvaranju zadatka: " + ex.Message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Nisam uspeo da zavrsim Daily Set zadatke: " + ex.Message);
+            }
+
             Console.WriteLine("=== CITANJE UKUPNIH POENA SA BING EKRANA ===");
-            await Task.Delay(3000); 
+            await desktopPage.GotoAsync("https://www.bing.com");
+            await Task.Delay(4000); 
 
             var pointsText = await desktopPage.EvaluateAsync<string>(@"
                 () => {

@@ -82,11 +82,11 @@ public class RewardAutomationService
         }
     }
 
-    public async Task StartLoginSessionAsync(int accountId)
+        public async Task StartLoginSessionAsync(int accountId)
     {
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var account = await dbContext.Accounts.FindAsync(accountId);
+        var account = await dbContext.Accounts.Include(a => a.RewardSite).FirstOrDefaultAsync(a => a.Id == accountId);
         if (account == null) return;
 
         using var playwright = await Playwright.CreateAsync();
@@ -94,9 +94,18 @@ public class RewardAutomationService
         var context = await browser.NewContextAsync();
         var page = await context.NewPageAsync();
 
+        string loginUrl = "https://login.live.com/";
+        if (account.RewardSite != null)
+        {
+            var siteName = account.RewardSite.Name.ToLower();
+            if (siteName.Contains("ysense")) loginUrl = "https://www.ysense.com/?action=login";
+            else if (siteName.Contains("freecash")) loginUrl = "https://freecash.com/";
+        }
+
         try 
         {
-            await page.GotoAsync("https://login.live.com/");
+            Console.WriteLine($"Otvaram prozor za logovanje: {loginUrl}");
+            await page.GotoAsync(loginUrl);
             await Task.Delay(90000); 
 
             account.SessionData = await context.StorageStateAsync();
@@ -185,4 +194,5 @@ public class RewardAutomationService
         Console.WriteLine("=== BOT JE ZAVRSIO SA RADOM ===");
     }
 }
+
 

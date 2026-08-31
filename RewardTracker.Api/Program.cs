@@ -60,12 +60,15 @@ app.UseHangfireDashboard("/hangfire");
 // Testna ruta koja koristi Hangfire da zakaže Playwright posao u pozadini
 app.MapGet("/api/test-hangfire", (IBackgroundJobClient backgroundJobs) => { backgroundJobs.Enqueue(() => Console.WriteLine("Hangfire test!")); return Results.Ok("Test job enqueued"); });
 
-// Dodajemo zakazivanje na sistemskom nivou
+// Dodajemo zakazivanje na sistemskom nivou.
+// TimeZone je obavezan: Hangfire podrazumevano tumaci cron u UTC, pa bi se posao
+// leti okidao u 08:00, a zimi u 07:00 po lokalnom vremenu.
 var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
 recurringJobManager.AddOrUpdate<RewardTracker.Infrastructure.Services.RewardAutomationService>(
     "dnevni-okidac-pretraga",
     service => service.ScheduleRandomDailyRuns(),
-    "0 6 * * *" // Svaki dan u 06:00
+    "0 6 * * *", // Svaki dan u 06:00
+    new RecurringJobOptions { TimeZone = TimeZoneInfo.Local }
 );
 
 app.Run();

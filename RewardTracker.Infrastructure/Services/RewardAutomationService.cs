@@ -57,7 +57,7 @@ public class RewardAutomationService
         var context = await browser.NewContextAsync(options);
         var page = await context.NewPageAsync();
 
-        string url = account.RewardSite.Name.ToLower().Contains("ysense") ? "https://www.ysense.com/" : "https://freecash.com/";
+        string url = account.RewardSite.Name.ToLower().Contains("ysense") ? "https://www.ysense.com/" : "https://freecash.com/rewards";
         
         try 
         {
@@ -93,7 +93,7 @@ public class RewardAutomationService
         {
             var siteName = account.RewardSite.Name.ToLower();
             if (siteName.Contains("ysense")) loginUrl = "https://www.ysense.com/?action=login";
-            else if (siteName.Contains("freecash")) loginUrl = "https://freecash.com/";
+            else if (siteName.Contains("freecash")) loginUrl = "https://freecash.com/rewards";
         }
 
         try 
@@ -195,7 +195,7 @@ public class RewardAutomationService
             else if (siteName.Contains("freecash"))
             {
                 Console.WriteLine("=== CITANJE POENA SA FREECASH ===");
-                await desktopPage.GotoAsync("https://freecash.com/");
+                await desktopPage.GotoAsync("https://freecash.com/rewards");
                 await Task.Delay(15000);
                 
                 var html = await desktopPage.ContentAsync();
@@ -253,3 +253,4 @@ public class RewardAutomationService
         dbContext.SaveChanges();
     }
 }
+

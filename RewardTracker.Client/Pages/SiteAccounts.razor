@@ -74,9 +74,10 @@
                     </td>
                     <td>
                                                                         <button class="btn btn-sm btn-primary me-2" @onclick="() => StartLogin(acc.Id)">Uloguj se</button>
-                        @if (!string.IsNullOrEmpty(acc.SessionData))
+                                                @if (!string.IsNullOrEmpty(acc.SessionData))
                         {
                             <button class="btn btn-sm btn-success me-2" @onclick="() => RunBot(acc.Id)"><i class="bi bi-play-fill"></i> Pokreni bota</button>
+                            <button class="btn btn-sm btn-info me-2 text-white" @onclick="() => GoToStats(acc.Id)"><i class="bi bi-graph-up"></i> Statistika</button>
                         }
                         <button class="btn btn-sm btn-danger" @onclick="() => DeleteAccount(acc.Id)">Obriši</button>
                     </td>
@@ -146,10 +147,16 @@
         }
     }
 
+        private void GoToStats(int accountId)
+    {
+        Navigation.NavigateTo($"/admin/account/{accountId}/stats");
+    }
+
     private void GoBack()
     {
         Navigation.NavigateTo("/admin");
     }
 }
+
 
 

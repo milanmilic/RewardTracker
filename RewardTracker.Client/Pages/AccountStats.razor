@@ -1,0 +1,104 @@
+@page "/admin/account/{AccountId:int}/stats"
+@using RewardTracker.Core.Entities
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>Statistika Naloga</PageTitle>
+
+<button class="btn btn-secondary mb-3" @onclick="GoBack"><i class="bi bi-arrow-left"></i> Nazad na naloge</button>
+
+<h3>Statistika zarade poena</h3>
+
+@if (logs == null)
+{
+    <p>Učitavanje podataka...</p>
+}
+else if (logs.Count == 0)
+{
+    <div class="alert alert-warning">Još uvek nema zabeleženih poena za ovaj nalog. Pokrenite bota kako bi upisao prve podatke!</div>
+}
+else
+{
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-header">Trenutno stanje</div>
+                <div class="card-body">
+                    <h2 class="card-title">@logs.Last().TotalPointsAfter <small style="font-size: 14px;">pts</small></h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-header">Zarada na poslednjem pokretanju</div>
+                <div class="card-body">
+                    <h2 class="card-title">+@logs.Last().PointsEarned <small style="font-size: 14px;">pts</small></h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-info mb-3">
+                <div class="card-header">Ukupno pokretanja bota</div>
+                <div class="card-body">
+                    <h2 class="card-title">@logs.Count</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Rast poena kroz vreme</h5>
+            <canvas id="pointsChart" width="400" height="150"></canvas>
+        </div>
+    </div>
+
+    <table class="table table-hover table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Datum i Vreme</th>
+                <th>Zaradeno Poena</th>
+                <th>Ukupno Stanje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var log in logs.OrderByDescending(l => l.Date))
+            {
+                <tr>
+                    <td>@log.Date.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                    <td><span class="text-success">+@log.PointsEarned</span></td>
+                    <td><strong>@log.TotalPointsAfter</strong></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter] public int AccountId { get; set; }
+
+    private List<PointLog>? logs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        logs = await Http.GetFromJsonAsync<List<PointLog>>($"api/accounts/{AccountId}/logs");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (logs != null && logs.Count > 0)
+        {
+            var labels = logs.Select(l => l.Date.ToLocalTime().ToString("dd.MM HH:mm")).ToArray();
+            var data = logs.Select(l => l.TotalPointsAfter).ToArray();
+            
+            await JSRuntime.InvokeVoidAsync("createChart", "pointsChart", labels, data, "Ukupno Poena");
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin"); // Moze i nazad na specifičan sajt ako pamtimo ID
+    }
+}

@@ -43,6 +43,15 @@ public class AccountsController : ControllerBase
         return NoContent();
     }
 
+        [HttpGet("{id}/logs")]
+    public async Task<ActionResult<IEnumerable<PointLog>>> GetPointLogs(int id)
+    {
+        return await _context.PointLogs
+            .Where(l => l.AccountId == id)
+            .OrderBy(l => l.Date)
+            .ToListAsync();
+    }
+
     // NOVA RUTA ZA LOGOVANJE
     [HttpPost("{id}/login")]
     public IActionResult StartLogin(int id, [FromServices] IBackgroundJobClient backgroundJobs)
@@ -57,3 +66,5 @@ public class AccountsController : ControllerBase
         return Ok();
     }
 }
+
+

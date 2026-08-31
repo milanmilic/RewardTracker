@@ -19,6 +19,26 @@ public class BotOptions
     /// <summary>Dodatno cekanje da React aplikacija iscrta sadrzaj posle mirovanja mreze.</summary>
     public int AppRenderDelayMs { get; set; } = 5_000;
 
+    // ---------------------------------------------------------------- ySense
+
+    /// <summary>Da li da se cita i ispisuje status Daily Checklist Bonus panela.</summary>
+    public bool YsenseChecklist { get; set; } = true;
+
+    // -------------------------------------------------------------- Freecash
+
+    /// <summary>Preuzimanje nagrade dnevnog niza kada uslov za nju bude ispunjen.</summary>
+    public bool FreecashStreak { get; set; } = true;
+
+    /// <summary>Ispisivanje broja tiketa za nedeljnu lutriju.</summary>
+    public bool FreecashLottery { get; set; } = true;
+
+    /// <summary>
+    /// Bonus kodovi koje bot pokusava da unese. Kodovi se objavljuju na drustvenim mrezama
+    /// Freecash-a i moraju se ovde uneti rucno - x.com bez prijave vraca HTTP 403.
+    /// Vec iskorisceni kodovi se samo odbiju, pa je bezbedno ostaviti ih u listi.
+    /// </summary>
+    public List<string> FreecashBonusCodes { get; set; } = [];
+
     /// <summary>Koliko najduze cekamo da korisnik rucno zavrsi logovanje.</summary>
     public int LoginWindowSeconds { get; set; } = 180;
 

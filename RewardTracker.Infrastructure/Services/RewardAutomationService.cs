@@ -50,6 +50,23 @@ public class RewardAutomationService
     /// <summary>Kartica na dashboard-u koja samo otvara modal ("Ready to claim 3 Claim").</summary>
     private const string ClaimCardSelector = "button:has-text('Ready to claim')";
 
+    private const string YsenseSurveysUrl = "https://www.ysense.com/surveys";
+
+    /// <summary>
+    /// Tekst dugmeta je u skrivenom span-u, pa se mora ciljati preko title atributa.
+    /// Postoje dve kopije (mobilna i desktop) - mobilna je nevidljiva i klik na nju puca.
+    /// </summary>
+    private const string YsenseChecklistButtonSelector =
+        "#dailyChecklistContainerDesktop button[title='Daily Checklist Bonus']";
+
+    private const string ChecklistHeading = "Daily Checklist Bonus";
+    private const string ChecklistFooter = "View History";
+
+    private const string FreecashRewardsUrl = "https://freecash.com/rewards";
+
+    /// <summary>Dugme dnevnog niza; tekst nosi i iznos, npr. "Claim $ 0.03".</summary>
+    private const string FreecashClaimSelector = "button:has-text('Claim $')";
+
     private enum LoginOutcome
     {
         Confirmed,
@@ -83,6 +100,7 @@ public class RewardAutomationService
     private readonly IBackgroundJobClient _backgroundJobs;
     private readonly ILogger<RewardAutomationService> _logger;
     private readonly BotOptions _options;
+    private readonly FreecashApiClient _freecash;
 
     public RewardAutomationService(
         IServiceProvider serviceProvider,
@@ -94,6 +112,7 @@ public class RewardAutomationService
         _backgroundJobs = backgroundJobs;
         _logger = logger;
         _options = options.Value;
+        _freecash = new FreecashApiClient(logger);
     }
 
     public void ScheduleRandomDailyRuns()
@@ -859,40 +878,8 @@ public class RewardAutomationService
 
     private async Task RunYsenseAsync(IPage page, AppDbContext dbContext, Account account, List<string> failures)
     {
-        _logger.LogInformation("Pokusavam ySense Daily Poll.");
-        try
-        {
-            await NavigateAsync(page, "https://www.ysense.com/surveys");
-
-            var radios = page.Locator("input[type='radio']");
-            await radios.First.WaitForAsync(new LocatorWaitForOptions
-            {
-                State = WaitForSelectorState.Visible,
-                Timeout = _options.ActionTimeoutMs
-            });
-
-            await radios.First.ClickAsync();
-
-            var voteBtn = page.Locator("button:has-text('Vote'), input[value='Vote'], button:has-text('Submit')").First;
-            await voteBtn.WaitForAsync(new LocatorWaitForOptions
-            {
-                State = WaitForSelectorState.Visible,
-                Timeout = _options.ActionTimeoutMs
-            });
-
-            await voteBtn.ClickAsync();
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions
-            {
-                Timeout = _options.ActionTimeoutMs
-            });
-
-            _logger.LogInformation("Daily Poll je odglasan.");
-        }
-        catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
-        {
-            // Ocekivano kada je poll vec uradjen ili ga danas nema.
-            _logger.LogInformation(ex, "Daily Poll nije odradjen (verovatno vec uradjen ili ga nema danas).");
-        }
+        await NavigateAsync(page, YsenseSurveysUrl);
+        await ReadYsenseChecklistAsync(page);
 
         await NavigateAsync(page, "https://www.ysense.com/");
         var points = await PollForPointsAsync(page, async () =>
@@ -910,40 +897,196 @@ public class RewardAutomationService
         await HandleBalanceAsync(page, dbContext, account, "ysense", points, failures);
     }
 
-    private async Task RunFreecashAsync(IPage page, AppDbContext dbContext, Account account, List<string> failures)
+    /// <summary>
+    /// Cita "Daily Checklist Bonus" panel i ispisuje dokle se stiglo. Sam bonus se ne moze
+    /// automatizovati - trazi stvarno odradjene ankete ili ponude - ali je korisno videti
+    /// sta jos fali za njega.
+    /// </summary>
+    private async Task ReadYsenseChecklistAsync(IPage page)
     {
-        _logger.LogInformation("Pokusavam Freecash Claim.");
+        if (!_options.YsenseChecklist)
+        {
+            return;
+        }
+
         try
         {
-            await NavigateAsync(page, "https://freecash.com/rewards");
-
-            var claimBtn = page.Locator("button:has-text('Claim')").First;
-            await claimBtn.WaitForAsync(new LocatorWaitForOptions
+            var button = page.Locator(YsenseChecklistButtonSelector);
+            await button.WaitForAsync(new LocatorWaitForOptions
             {
                 State = WaitForSelectorState.Visible,
                 Timeout = _options.ActionTimeoutMs
             });
 
-            await claimBtn.ClickAsync();
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions
+            // ySense povremeno drzi otvoren modal sa preporukom ankete cija providna
+            // podloga presretne obican klik. DispatchEvent ne zavisi od pointer dogadjaja.
+            await button.DispatchEventAsync("click", null, new LocatorDispatchEventOptions
             {
                 Timeout = _options.ActionTimeoutMs
             });
 
-            _logger.LogInformation("Claim dugme je kliknuto.");
+            await page.WaitForTimeoutAsync(_options.AppRenderDelayMs);
+
+            var summary = ExtractChecklistSummary(await page.Locator("body").InnerTextAsync());
+            if (summary is null)
+            {
+                _logger.LogInformation("Daily Checklist panel je otvoren, ali sadrzaj nije prepoznat.");
+                return;
+            }
+
+            _logger.LogInformation("Daily Checklist: {Summary}", summary);
         }
         catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
         {
-            _logger.LogInformation(ex, "Claim dugme nije pronadjeno (verovatno je vec kliknuto danas).");
+            _logger.LogInformation(ex, "Daily Checklist panel nije procitan.");
+        }
+    }
+
+    /// <summary>
+    /// Izvlaci deo teksta panela izmedju naslova i dugmeta "View History" i spaja ga u jedan red.
+    /// Namerno se oslanja na tekst, a ne na klase - ySense generise nasumicne sufikse u nazivima klasa.
+    /// </summary>
+    private static string? ExtractChecklistSummary(string pageText)
+    {
+        var start = pageText.IndexOf(ChecklistHeading, StringComparison.OrdinalIgnoreCase);
+        if (start < 0)
+        {
+            return null;
         }
 
-        await NavigateAsync(page, "https://freecash.com/rewards");
-        var points = await PollForPointsAsync(
-            page,
-            async () => ParseFreecashCents(await page.ContentAsync()),
-            "Freecash stanje");
+        start += ChecklistHeading.Length;
+        var end = pageText.IndexOf(ChecklistFooter, start, StringComparison.OrdinalIgnoreCase);
+        var slice = end > start ? pageText[start..end] : pageText[start..];
 
+        var condensed = Regex.Replace(slice, @"\s*\n\s*", " · ", RegexOptions.None, RegexTimeout).Trim(' ', '·');
+        return condensed.Length == 0 ? null : condensed;
+    }
+
+    private async Task RunFreecashAsync(IPage page, AppDbContext dbContext, Account account, List<string> failures)
+    {
+        await NavigateAsync(page, FreecashRewardsUrl);
+        await page.WaitForTimeoutAsync(_options.AppRenderDelayMs);
+
+        await RunFreecashStreakAsync(page);
+        await RunFreecashBonusCodesAsync(page);
+        await LogFreecashLotteryAsync(page);
+
+        var points = await PollForPointsAsync(page, () => _freecash.ReadBalanceCentsAsync(page), "Freecash stanje");
         await HandleBalanceAsync(page, dbContext, account, "freecash", points, failures);
+    }
+
+    /// <summary>
+    /// Preuzima dnevni niz samo kada je to stvarno moguce. Nagrada je zakljucana dok se
+    /// u toku dana ne zaradi propisani iznos, pa dugme tada stoji onemoguceno.
+    /// </summary>
+    private async Task RunFreecashStreakAsync(IPage page)
+    {
+        if (!_options.FreecashStreak)
+        {
+            return;
+        }
+
+        var streak = await _freecash.ReadStreakAsync(page);
+        if (streak is null)
+        {
+            _logger.LogWarning("Status dnevnog niza nije procitan.");
+            return;
+        }
+
+        var required = await _freecash.ReadMinCoinsToEarnAsync(page);
+        var requiredText = required is null
+            ? "nepoznato"
+            : $"${required.Value / (double)FreecashApiClient.CoinsPerDollar:0.00}";
+
+        _logger.LogInformation(
+            "Dnevni niz: dan {Day}, nagrada {Reward} centi, preuzeto: {Claimed}. Uslov: zarada od {Required} u toku dana.",
+            streak.Day, FreecashApiClient.CoinsToCents(streak.Coins), streak.Claimed ? "da" : "ne", requiredText);
+
+        if (streak.Claimed)
+        {
+            return;
+        }
+
+        var button = page.Locator(FreecashClaimSelector).First;
+
+        if (await button.CountAsync() == 0)
+        {
+            _logger.LogInformation("Dugme za preuzimanje dnevnog niza nije prikazano.");
+            return;
+        }
+
+        if (!await button.IsEnabledAsync())
+        {
+            _logger.LogInformation(
+                "Nagrada za dnevni niz je zakljucana - dnevna zarada od {Required} jos nije ostvarena.", requiredText);
+            return;
+        }
+
+        await button.ClickAsync(new LocatorClickOptions { Timeout = _options.ActionTimeoutMs });
+        await HumanPauseAsync(page, 4000, 7000);
+
+        var after = await _freecash.ReadStreakAsync(page);
+        if (after?.Claimed == true)
+        {
+            _logger.LogInformation("Preuzeta nagrada dnevnog niza: {Cents} centi.", FreecashApiClient.CoinsToCents(streak.Coins));
+        }
+        else
+        {
+            _logger.LogWarning("Klik na dugme dnevnog niza nije potvrdjen kao preuzimanje.");
+        }
+    }
+
+    /// <summary>
+    /// Unosi bonus kodove iz konfiguracije. Kodovi se objavljuju na drustvenim mrezama
+    /// Freecash-a, a one se ne mogu citati automatski (x.com bez prijave vraca HTTP 403),
+    /// pa se lista popunjava rucno u appsettings.json.
+    /// </summary>
+    private async Task RunFreecashBonusCodesAsync(IPage page)
+    {
+        var codes = _options.FreecashBonusCodes
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(c => c.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (codes.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var code in codes)
+        {
+            var (outcome, message) = await _freecash.ClaimBonusCodeAsync(page, code);
+
+            switch (outcome)
+            {
+                case BonusCodeOutcome.Redeemed:
+                    _logger.LogInformation("Bonus kod {Code}: iskoriscen ({Message}).", code, message);
+                    break;
+                case BonusCodeOutcome.Rejected:
+                    _logger.LogInformation("Bonus kod {Code}: odbijen ({Message}).", code, message);
+                    break;
+                default:
+                    _logger.LogWarning("Bonus kod {Code}: {Message}.", code, message);
+                    break;
+            }
+
+            await HumanPauseAsync(page, 2000, 4000);
+        }
+    }
+
+    private async Task LogFreecashLotteryAsync(IPage page)
+    {
+        if (!_options.FreecashLottery)
+        {
+            return;
+        }
+
+        var tickets = await _freecash.ReadLotteryTicketsAsync(page);
+        if (tickets is not null)
+        {
+            _logger.LogInformation("Nedeljna lutrija: {Tickets} tiketa.", tickets);
+        }
     }
 
     // ---------------------------------------------------------------- pomocne
@@ -1226,19 +1369,5 @@ public class RewardAutomationService
         return decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.InvariantCulture, out var amount) && amount > 0
             ? (int)Math.Round(amount * 100)
             : null;
-    }
-
-    private static int? ParseFreecashCents(string html)
-    {
-        var match = Regex.Match(html, @"secondaryLabel[^0-9]+([0-9]+[.,][0-9]+)", RegexOptions.None, RegexTimeout);
-        if (match.Success &&
-            decimal.TryParse(match.Groups[1].Value.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture,
-                out var amount) && amount > 0)
-        {
-            return (int)Math.Round(amount * 100);
-        }
-
-        var alt = Regex.Match(html, @"""coins""\s*:\s*(\d+)", RegexOptions.None, RegexTimeout);
-        return alt.Success && int.TryParse(alt.Groups[1].Value, out var coins) && coins > 0 ? coins : null;
     }
 }

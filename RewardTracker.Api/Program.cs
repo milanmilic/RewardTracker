@@ -31,6 +31,10 @@ builder.Services.AddCors(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 
+// Podesavanja bota (headless, putanja za snimke ekrana, tajmauti)
+builder.Services.Configure<RewardTracker.Infrastructure.Services.BotOptions>(
+    builder.Configuration.GetSection(RewardTracker.Infrastructure.Services.BotOptions.SectionName));
+
 // Registrujemo Playwright servis
 builder.Services.AddScoped<RewardTracker.Infrastructure.Services.RewardAutomationService>();
 

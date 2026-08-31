@@ -1,5 +1,5 @@
 @page "/admin/site/{SiteId:int}/accounts"
-@using RewardTracker.Core.Entities
+@using RewardTracker.Core.Dtos
 @using System.Net.Http.Json
 @inject HttpClient Http
 @inject NavigationManager Navigation
@@ -65,7 +65,7 @@
                     <td><strong>@acc.Username</strong></td>
                     <td>@acc.CurrentPoints</td>
                     <td>
-                        @if (string.IsNullOrEmpty(acc.SessionData)) { <span class="text-danger"><i class="bi bi-x-circle"></i> Ne</span> }
+                        @if (!acc.HasSession) { <span class="text-danger"><i class="bi bi-x-circle"></i> Ne</span> }
                         else { <span class="text-success"><i class="bi bi-check-circle"></i> Da</span> }
                     </td>
                     <td>
@@ -74,7 +74,7 @@
                     </td>
                     <td>
                                                                         <button class="btn btn-sm btn-primary me-2" @onclick="() => StartLogin(acc.Id)">Uloguj se</button>
-                                                                        @if (!string.IsNullOrEmpty(acc.SessionData))
+                                                                        @if (acc.HasSession)
                         {
                             <button class="btn btn-sm btn-success me-2" @onclick="() => RunBot(acc.Id)"><i class="bi bi-play-fill"></i> Pokreni bota</button>
                             <button class="btn btn-sm btn-info me-2 text-white" @onclick="() => GoToStats(acc.Id)"><i class="bi bi-graph-up"></i> Statistika</button>
@@ -91,8 +91,8 @@
 @code {
     [Parameter] public int SiteId { get; set; }
 
-    private List<Account>? accounts;
-    private Account newAccount = new() { IsActive = true };
+    private List<AccountDto>? accounts;
+    private CreateAccountRequest newAccount = new() { IsActive = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -101,7 +101,7 @@
 
     private async Task LoadAccounts()
     {
-        accounts = await Http.GetFromJsonAsync<List<Account>>($"api/accounts/site/{SiteId}");
+        accounts = await Http.GetFromJsonAsync<List<AccountDto>>($"api/accounts/site/{SiteId}");
     }
 
     private async Task AddAccount()

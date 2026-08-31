@@ -99,78 +99,36 @@ public class RewardAutomationService
         {
             var siteName = account.RewardSite.Name.ToLower();
             if (siteName.Contains("ysense")) loginUrl = "https://www.ysense.com/?action=login";
-            else if (siteName.Contains("freecash")) loginUrl = "https://freecash.com/";
-        }
-
-        try 
-        {
-            Console.WriteLine($"Otvaram prozor za logovanje: {loginUrl}");
-            await page.GotoAsync(loginUrl);
-            await Task.Delay(90000); 
-
-            account.SessionData = await context.StorageStateAsync();
-            dbContext.Accounts.Update(account);
-            await dbContext.SaveChangesAsync();
-        }
-        catch (Exception ex) { Console.WriteLine("Greska: " + ex.Message); }
-        finally { await browser.CloseAsync(); }
-    }
-
-        public async Task RunDailyTasksAsync(int accountId)
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var account = await dbContext.Accounts.Include(a => a.RewardSite).FirstOrDefaultAsync(a => a.Id == accountId);
-        if (account == null || string.IsNullOrEmpty(account.SessionData)) return;
-
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
-        
-        var desktopOptions = new BrowserNewContextOptions { StorageState = account.SessionData };
-        var desktopContext = await browser.NewContextAsync(desktopOptions);
-        var desktopPage = await desktopContext.NewPageAsync();
-
-        var siteName = account.RewardSite.Name.ToLower();
-
-        try 
-        {
-            if (siteName.Contains("bing"))
+                        else if (siteName.Contains("freecash"))
             {
-                var random = new Random();
-                var baseWords = new[] { "Srbija", "Beograd", "Vesti", "Sport", "Filmovi", "Recepti", "Tehnologija", "Zanimljivosti", "Istorija", "Automobili", "Kompjuteri", "Muzika", "Klima", "Putovanja", "Fizika", "Astronomija", "Planete", "Ekonomija", "Zdravlje", "Trening", "Ishrana", "Programiranje", "Arhitektura" };
-
-                Console.WriteLine("=== START: BING PRETRAGE ===");
-                for(int i = 0; i < 25; i++)
+                Console.WriteLine("=== CITANJE POENA SA FREECASH ===");
+                await desktopPage.GotoAsync("https://freecash.com/");
+                await Task.Delay(15000);
+                
+                var html = await desktopPage.ContentAsync();
+                var match = Regex.Match(html, @"secondaryLabel"":""[^0-9]*([0-9]+\.[0-9]+)");
+                if (match.Success)
                 {
-                    var term = baseWords[random.Next(baseWords.Length)] + " " + baseWords[random.Next(baseWords.Length)] + " " + random.Next(100, 9999);
-                    await desktopPage.GotoAsync("https://www.bing.com");
-                    await Task.Delay(2000);
-                    var searchInput = desktopPage.Locator("[name='q']").First;
-                    await searchInput.FillAsync(term, new() { Force = true });
-                    await searchInput.PressAsync("Enter");
-                    await Task.Delay(random.Next(4000, 10000)); 
-                }
-
-                Console.WriteLine("=== CITANJE UKUPNIH POENA SA BING EKRANA ===");
-                await desktopPage.GotoAsync("https://www.bing.com");
-                await Task.Delay(4000); 
-
-                var pointsText = await desktopPage.EvaluateAsync<string>(@"
-                    () => {
-                        var el = document.querySelector('span.points-container');
-                        if (el) return el.innerText;
-                        var backup = document.querySelector('[data-tag=""RewardsHeader.Counter""]');
-                        if (backup) return backup.innerText;
-                        return '';
-                    }
-                ");
-
-                if (!string.IsNullOrWhiteSpace(pointsText))
-                {
-                    var cleanNumber = Regex.Replace(pointsText, "[^0-9]", "");
-                    if (int.TryParse(cleanNumber, out int pts) && pts > 0)
+                    if (decimal.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal decimalPts))
                     {
+                        int pts = (int)Math.Round(decimalPts * 100);
                         SavePoints(dbContext, account, pts);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Freecash kod pronadjen, ali secondaryLabel nije uocen! Pokusavam alternativno...");
+                    var altMatch = Regex.Match(html, @"\""coins\"":(\d+)");
+                    if (altMatch.Success)
+                    {
+                        if (int.TryParse(altMatch.Groups[1].Value, out int pts))
+                        {
+                            SavePoints(dbContext, account, pts);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Nisam uspeo da izvucem cifru sa Freecash-a. Stranica se mozda drugacije ucitala.");
                     }
                 }
             }
@@ -183,11 +141,7 @@ public class RewardAutomationService
                 var pointsText = await desktopPage.EvaluateAsync<string>(@"
                     () => {
                         var b = document.querySelector('.dropdown-menu-right li a strong');
-                        if (b && b.innerText.includes('
-}
-
-
-)) return b.innerText;
+                        if (b && b.innerText.includes('$')) return b.innerText;
                         return '';
                     }
                 ");
@@ -202,7 +156,7 @@ public class RewardAutomationService
                     }
                 }
             }
-            else if (siteName.Contains("freecash"))
+                        else if (siteName.Contains("freecash"))
             {
                 Console.WriteLine("=== CITANJE POENA SA FREECASH ===");
                 await desktopPage.GotoAsync("https://freecash.com/");
@@ -216,6 +170,22 @@ public class RewardAutomationService
                     {
                         int pts = (int)Math.Round(decimalPts * 100);
                         SavePoints(dbContext, account, pts);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Freecash kod pronadjen, ali secondaryLabel nije uocen! Pokusavam alternativno...");
+                    var altMatch = Regex.Match(html, @"\""coins\"":(\d+)");
+                    if (altMatch.Success)
+                    {
+                        if (int.TryParse(altMatch.Groups[1].Value, out int pts))
+                        {
+                            SavePoints(dbContext, account, pts);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Nisam uspeo da izvucem cifru sa Freecash-a. Stranica se mozda drugacije ucitala.");
                     }
                 }
             }
@@ -247,6 +217,7 @@ public class RewardAutomationService
         dbContext.SaveChanges();
     }
 }
+
 
 
 

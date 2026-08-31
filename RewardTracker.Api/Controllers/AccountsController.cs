@@ -60,11 +60,20 @@ public class AccountsController : ControllerBase
         return Ok();
     }
     [HttpPost("{id}/run")]
+        [HttpPost("{id}/scan")]
+    public IActionResult ScanSite(int id, [FromServices] IBackgroundJobClient backgroundJobs)
+    {
+        backgroundJobs.Enqueue<RewardTracker.Infrastructure.Services.RewardAutomationService>(s => s.ScanSiteDOMAsync(id));
+        return Ok();
+    }
+
+    [HttpPost("{id}/run")]
     public IActionResult RunTasks(int id, [FromServices] IBackgroundJobClient backgroundJobs)
     {
         backgroundJobs.Enqueue<RewardTracker.Infrastructure.Services.RewardAutomationService>(s => s.RunDailyTasksAsync(id));
         return Ok();
     }
 }
+
 
 

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System;
 using System.Text.RegularExpressions;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace RewardTracker.Infrastructure.Services;
 
@@ -35,6 +36,49 @@ public class RewardAutomationService
                 s => s.RunDailyTasksAsync(account.Id), 
                 TimeSpan.FromMinutes(randomDelayMinutes)
             );
+        }
+    }
+
+        public async Task ScanSiteDOMAsync(int accountId)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var account = await dbContext.Accounts.Include(a => a.RewardSite).FirstOrDefaultAsync(a => a.Id == accountId);
+        if (account == null || string.IsNullOrEmpty(account.SessionData)) 
+        {
+            Console.WriteLine("Nalog nema sacuvanu sesiju!");
+            return;
+        }
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
+        
+        var options = new BrowserNewContextOptions { StorageState = account.SessionData };
+        var context = await browser.NewContextAsync(options);
+        var page = await context.NewPageAsync();
+
+        string url = account.RewardSite.Name.ToLower().Contains("ysense") ? "https://www.ysense.com/" : "https://freecash.com/";
+        
+        try 
+        {
+            Console.WriteLine($"Skeniram {url}...");
+            await page.GotoAsync(url);
+            await Task.Delay(15000); // Cekamo da prodju sve Cloudflare zastite i pop-upovi
+            
+            var html = await page.ContentAsync();
+            var fileName = url.Contains("ysense") ? "ysense_source.txt" : "freecash_source.txt";
+            var filePath = System.IO.Path.Combine("C:\\Users\\mimi2004\\Desktop", fileName);
+            
+            await System.IO.File.WriteAllTextAsync(filePath, html);
+            Console.WriteLine($"Uspesno sacuvan kod na: {filePath}");
+        }
+        catch (Exception ex) 
+        { 
+            Console.WriteLine("Greska pri skeniranju: " + ex.Message); 
+        }
+        finally 
+        { 
+            await context.CloseAsync(); 
         }
     }
 
@@ -141,3 +185,4 @@ public class RewardAutomationService
         Console.WriteLine("=== BOT JE ZAVRSIO SA RADOM ===");
     }
 }
+

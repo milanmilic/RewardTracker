@@ -170,6 +170,25 @@ public class RewardAutomationService
             }
             else if (siteName.Contains("ysense"))
             {
+                                Console.WriteLine("=== POKUSAJ YSENSE DAILY POLL ===");
+                try {
+                    await desktopPage.GotoAsync("https://www.ysense.com/surveys");
+                    await Task.Delay(8000);
+                    var radios = desktopPage.Locator("input[type='radio']");
+                    if (await radios.CountAsync() > 0) {
+                        await radios.First.ClickAsync();
+                        await Task.Delay(1000);
+                        var voteBtn = desktopPage.Locator("button:has-text('Vote'), input[value='Vote'], button:has-text('Submit')").First;
+                        if (await voteBtn.IsVisibleAsync()) {
+                            await voteBtn.ClickAsync();
+                            Console.WriteLine("Uspesno kliknuto na Daily Poll!");
+                            await Task.Delay(6000);
+                        }
+                    } else {
+                        Console.WriteLine("Nije pronadjen Daily Poll (ili je vec uradjen).");
+                    }
+                } catch { Console.WriteLine("Greska pri trazenju Daily Polla."); }
+
                 Console.WriteLine("=== CITANJE POENA SA YSENSE ===");
                 await desktopPage.GotoAsync("https://www.ysense.com/");
                 await Task.Delay(10000);
@@ -194,6 +213,20 @@ public class RewardAutomationService
             }
             else if (siteName.Contains("freecash"))
             {
+                                Console.WriteLine("=== POKUSAJ FREECASH CLAIM ===");
+                try {
+                    await desktopPage.GotoAsync("https://freecash.com/rewards");
+                    await Task.Delay(15000);
+                    var claimBtn = desktopPage.Locator("button:has-text('Claim')").First;
+                    if (await claimBtn.IsVisibleAsync()) {
+                        await claimBtn.ClickAsync();
+                        Console.WriteLine("Kliknuto na Claim dugme!");
+                        await Task.Delay(8000);
+                    } else {
+                        Console.WriteLine("Claim dugme nije pronadjeno (ili je vec kliknuto).");
+                    }
+                } catch { Console.WriteLine("Greska pri trazenju Claim dugmeta."); }
+
                 Console.WriteLine("=== CITANJE POENA SA FREECASH ===");
                 await desktopPage.GotoAsync("https://freecash.com/rewards");
                 await Task.Delay(15000);
@@ -253,4 +286,5 @@ public class RewardAutomationService
         dbContext.SaveChanges();
     }
 }
+
 

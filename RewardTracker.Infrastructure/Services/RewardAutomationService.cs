@@ -44,12 +44,11 @@ public class RewardAutomationService
         ".rqOption"
     ];
 
-    private static readonly string[] ClaimButtonSelectors =
-    [
-        "button:has-text('Claim')",
-        "button:has-text('Preuzmi')",
-        "a:has-text('Claim')"
-    ];
+    /// <summary>Dugme unutar modala koje stvarno preuzima poene ("3 Pending Claim points").</summary>
+    private const string ClaimModalButtonSelector = "button:has-text('Claim points')";
+
+    /// <summary>Kartica na dashboard-u koja samo otvara modal ("Ready to claim 3 Claim").</summary>
+    private const string ClaimCardSelector = "button:has-text('Ready to claim')";
 
     private enum LoginOutcome
     {
@@ -653,19 +652,21 @@ public class RewardAutomationService
         try
         {
             await NavigateAsync(tab, url);
-            await HumanPauseAsync(tab, 3000, 6000);
+            await WaitForAppReadyAsync(tab);
 
-            foreach (var selector in ClaimButtonSelectors)
+            // Prvo trazimo dugme u modalu; kartica na dashboard-u samo otvara modal.
+            var claimed = await TryClaimAsync(tab);
+
+            if (!claimed && await TryClickAsync(tab, tab.Locator(ClaimCardSelector)))
             {
-                if (await TryClickAsync(tab, tab.Locator(selector)))
-                {
-                    _logger.LogInformation("Preuzeti neuzeti bonus poeni.");
-                    await HumanPauseAsync(tab, 2000, 4000);
-                    return;
-                }
+                await WaitForAppReadyAsync(tab);
+                claimed = await TryClaimAsync(tab);
             }
 
-            _logger.LogInformation("Nema bonus poena za preuzimanje.");
+            if (!claimed)
+            {
+                _logger.LogInformation("Nema bonus poena za preuzimanje.");
+            }
         }
         catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
         {
@@ -678,6 +679,43 @@ public class RewardAutomationService
                 await tab.CloseAsync();
             }
         }
+    }
+
+    /// <summary>
+    /// Dugme za preuzimanje ostaje na stranici i kada nema sta da se uzme (tekst "0 Claim points"),
+    /// pa broj citamo iz samog teksta da ne bismo prijavili preuzimanje koje se nije desilo.
+    /// </summary>
+    private async Task<bool> TryClaimAsync(IPage tab)
+    {
+        var button = tab.Locator(ClaimModalButtonSelector);
+        int? pending;
+
+        try
+        {
+            if (await button.CountAsync() == 0)
+            {
+                return false;
+            }
+
+            pending = ParseWholeNumber(await button.First.InnerTextAsync(new LocatorInnerTextOptions
+            {
+                Timeout = _options.ActionTimeoutMs
+            }));
+        }
+        catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
+        {
+            _logger.LogDebug(ex, "Nisam mogao da procitam dugme za preuzimanje bonus poena.");
+            return false;
+        }
+
+        if (pending is null || !await TryClickAsync(tab, button))
+        {
+            return false;
+        }
+
+        _logger.LogInformation("Preuzeto {Points} bonus poena.", pending);
+        await HumanPauseAsync(tab, 4000, 7000);
+        return true;
     }
 
     /// <summary>
@@ -772,6 +810,27 @@ public class RewardAutomationService
         }
 
         _logger.LogInformation("Dnevni check-in: zaradjeno {Points} poena.", points.Value);
+    }
+
+    /// <summary>
+    /// Rewards dashboard je React aplikacija - DOMContentLoaded nije dovoljan da bi
+    /// dugmad postojala u DOM-u. Zato cekamo mirovanje mreze pa jos malo iscrtavanje.
+    /// </summary>
+    private async Task WaitForAppReadyAsync(IPage page)
+    {
+        try
+        {
+            await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions
+            {
+                Timeout = _options.NavigationTimeoutMs
+            });
+        }
+        catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
+        {
+            _logger.LogDebug(ex, "Cekanje na mirovanje mreze je isteklo - nastavljam.");
+        }
+
+        await page.WaitForTimeoutAsync(_options.AppRenderDelayMs);
     }
 
     /// <summary>Klikce samo ono sto stvarno postoji, vidi se i omoguceno je. Vraca da li je klik izvrsen.</summary>

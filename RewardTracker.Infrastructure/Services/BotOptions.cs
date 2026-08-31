@@ -16,6 +16,9 @@ public class BotOptions
     /// <summary>Koliko najduze cekamo da se stanje poena pojavi na stranici.</summary>
     public int BalanceTimeoutMs { get; set; } = 30_000;
 
+    /// <summary>Dodatno cekanje da React aplikacija iscrta sadrzaj posle mirovanja mreze.</summary>
+    public int AppRenderDelayMs { get; set; } = 5_000;
+
     /// <summary>Koliko najduze cekamo da korisnik rucno zavrsi logovanje.</summary>
     public int LoginWindowSeconds { get; set; } = 180;
 

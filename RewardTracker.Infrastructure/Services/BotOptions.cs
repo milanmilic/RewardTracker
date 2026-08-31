@@ -19,5 +19,27 @@ public class BotOptions
     /// <summary>Koliko najduze cekamo da korisnik rucno zavrsi logovanje.</summary>
     public int LoginWindowSeconds { get; set; } = 180;
 
+    /// <summary>Koliko pretraga radimo kada Rewards status nije procitan (rezervna vrednost).</summary>
     public int BingSearchCount { get; set; } = 25;
+
+    /// <summary>Gornja granica pretraga po pokretanju, i onda kada se broj racuna iz Rewards statusa.</summary>
+    public int BingMaxSearches { get; set; } = 30;
+
+    /// <summary>Koliko poena Bing daje po pretrazi - koristi se za racunanje potrebnog broja pretraga.</summary>
+    public int BingPointsPerSearch { get; set; } = 3;
+
+    /// <summary>Preskoci pretrage kada Rewards javi da je dnevni limit poena vec dostignut.</summary>
+    public bool BingSkipCompletedSearches { get; set; } = true;
+
+    /// <summary>Odradi Bing Daily Set zadatke (uobicajeno 3 x 10 poena).</summary>
+    public bool BingDailySet { get; set; } = true;
+
+    /// <summary>Pokusaj i kvizove iz Daily Set-a, ne samo obicne linkove.</summary>
+    public bool BingDailySetQuizzes { get; set; } = true;
+
+    /// <summary>Najduze vreme koje trosimo na jedan kviz.</summary>
+    public int BingQuizTimeoutMs { get; set; } = 90_000;
+
+    /// <summary>Pokusaj da preuzmes neuzete bonus poene ("Ready to claim").</summary>
+    public bool BingClaimPoints { get; set; } = true;
 }

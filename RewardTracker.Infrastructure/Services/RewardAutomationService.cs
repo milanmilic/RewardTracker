@@ -16,6 +16,41 @@ public class RewardAutomationService
     private const int PollIntervalMs = 500;
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(5);
 
+    private const string BingHomeUrl = "https://www.bing.com";
+
+    /// <summary>
+    /// Jedina stranica koja jos uvek nosi kompletan Rewards JSON (userStatus, counters,
+    /// dailySetPromotions). Novi rewards.bing.com/dashboard je Next.js i nema upotrebljiv HTML.
+    /// </summary>
+    private const string BingFlyoutUrl = "https://www.bing.com/rewards/panelflyout";
+
+    /// <summary>Bing koristi iste ID-jeve opcija i za svako naredno pitanje u kvizu.</summary>
+    private const int QuizOptionsPerQuestion = 8;
+
+    private const int MaxQuizClicks = 60;
+
+    private static readonly string[] QuizStartSelectors =
+    [
+        "#rqStartQuiz",
+        "input#rqStartQuiz",
+        "#quizWelcomeContainer input[type='button']"
+    ];
+
+    /// <summary>Kvizovi tipa "This or That" i kartice sa dve ponudjene opcije.</summary>
+    private static readonly string[] QuizCardSelectors =
+    [
+        ".wk_OptionClickClass",
+        ".btOptionCard",
+        ".rqOption"
+    ];
+
+    private static readonly string[] ClaimButtonSelectors =
+    [
+        "button:has-text('Claim')",
+        "button:has-text('Preuzmi')",
+        "a:has-text('Claim')"
+    ];
+
     private enum LoginOutcome
     {
         Confirmed,
@@ -286,6 +321,34 @@ public class RewardAutomationService
 
     private async Task RunBingAsync(IPage page, AppDbContext dbContext, Account account, List<string> failures)
     {
+        // Zagrevanje sesije - flyout ne vraca podatke ako prethodno nismo bili na bing.com.
+        await NavigateAsync(page, BingHomeUrl);
+        var status = await ReadBingStatusAsync(page);
+
+        await RunBingSearchesAsync(page, status, failures);
+
+        if (_options.BingDailySet)
+        {
+            await RunBingDailySetAsync(page, status);
+        }
+
+        if (_options.BingClaimPoints)
+        {
+            await ClaimBingPointsAsync(page, status);
+        }
+
+        var points = await ReadBingPointsAsync(page);
+        await HandleBalanceAsync(page, dbContext, account, "bing", points, failures);
+    }
+
+    private async Task RunBingSearchesAsync(IPage page, BingRewardsStatus? status, List<string> failures)
+    {
+        var target = ResolveSearchCount(status);
+        if (target <= 0)
+        {
+            return;
+        }
+
         string[] baseWords =
         [
             "Srbija", "Beograd", "Vesti", "Sport", "Filmovi", "Recepti", "Tehnologija", "Zanimljivosti",
@@ -293,17 +356,17 @@ public class RewardAutomationService
             "Planete", "Ekonomija", "Zdravlje", "Trening", "Ishrana", "Programiranje", "Arhitektura"
         ];
 
-        _logger.LogInformation("Pokrecem {Count} Bing pretraga.", _options.BingSearchCount);
+        _logger.LogInformation("Pokrecem {Count} Bing pretraga.", target);
         var completed = 0;
 
-        for (var i = 0; i < _options.BingSearchCount; i++)
+        for (var i = 0; i < target; i++)
         {
             var term = $"{baseWords[Random.Shared.Next(baseWords.Length)]} " +
                        $"{baseWords[Random.Shared.Next(baseWords.Length)]} " +
                        $"{Random.Shared.Next(100, 9999)}";
             try
             {
-                await NavigateAsync(page, "https://www.bing.com");
+                await NavigateAsync(page, BingHomeUrl);
 
                 var searchInput = page.Locator("[name='q']").First;
                 await searchInput.WaitForAsync(new LocatorWaitForOptions
@@ -324,21 +387,112 @@ public class RewardAutomationService
             }
             catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
             {
-                _logger.LogWarning(ex, "Pretraga {Index}/{Total} nije uspela ({Term}).",
-                    i + 1, _options.BingSearchCount, term);
+                _logger.LogWarning(ex, "Pretraga {Index}/{Total} nije uspela ({Term}).", i + 1, target, term);
             }
         }
 
-        _logger.LogInformation("Zavrseno {Completed}/{Total} pretraga.", completed, _options.BingSearchCount);
+        _logger.LogInformation("Zavrseno {Completed}/{Total} pretraga.", completed, target);
 
         if (completed == 0)
         {
             failures.Add("Nijedna Bing pretraga nije uspela.");
             await CaptureScreenshotAsync(page, "bing_no_searches");
         }
+    }
 
-        await NavigateAsync(page, "https://www.bing.com");
-        var points = await PollForPointsAsync(page, async () =>
+    /// <summary>
+    /// Racuna koliko pretraga stvarno treba. Ranije je uvek radio fiksnih 25, iako je
+    /// dnevni limit 60 poena (20 pretraga po 3 poena) - visak je bio bacen posao.
+    /// </summary>
+    private int ResolveSearchCount(BingRewardsStatus? status)
+    {
+        var fallback = Math.Min(_options.BingSearchCount, _options.BingMaxSearches);
+
+        if (status is null)
+        {
+            _logger.LogWarning("Rewards status nije procitan - radim rezervnih {Count} pretraga.", fallback);
+            return fallback;
+        }
+
+        if (!_options.BingSkipCompletedSearches)
+        {
+            return fallback;
+        }
+
+        var needed = status.RemainingSearches(_options.BingPointsPerSearch);
+        if (needed <= 0)
+        {
+            _logger.LogInformation(
+                "Dnevni limit poena od pretraga je vec dostignut ({Progress}/{Max}) - preskacem pretrage.",
+                status.SearchProgress, status.SearchMax);
+            return 0;
+        }
+
+        // Jedna pretraga vise od izracunatog, jer poneka ne bude priznata.
+        var target = Math.Min(needed + 1, _options.BingMaxSearches);
+        _logger.LogInformation(
+            "Nedostaje {Missing} poena do limita ({Progress}/{Max}) - radim {Target} pretraga.",
+            status.SearchMax - status.SearchProgress, status.SearchProgress, status.SearchMax, target);
+
+        return target;
+    }
+
+    /// <summary>
+    /// Cita Rewards status iz JSON-a ugradjenog u panelflyout. Dashboard je Next.js aplikacija
+    /// bez upotrebljivog HTML-a, pa je flyout jedini pouzdan izvor ovih podataka.
+    /// </summary>
+    private async Task<BingRewardsStatus?> ReadBingStatusAsync(IPage page)
+    {
+        try
+        {
+            await NavigateAsync(page, BingFlyoutUrl);
+            await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions
+            {
+                Timeout = _options.ActionTimeoutMs
+            });
+        }
+        catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
+        {
+            _logger.LogDebug(ex, "Rewards flyout se nije ucitao do kraja - citam sadrzaj svejedno.");
+        }
+
+        try
+        {
+            var status = BingRewardsStatus.TryParse(await page.ContentAsync());
+            if (status is null)
+            {
+                _logger.LogWarning(
+                    "Rewards flyout je otvoren, ali JSON sa statusom nije pronadjen (moguca promena na Microsoft strani).");
+                return null;
+            }
+
+            _logger.LogInformation(
+                "Rewards status: {Points} poena, pretrage {Progress}/{Max}, Daily Set {Done}/{Total}.",
+                status.AvailablePoints, status.SearchProgress, status.SearchMax,
+                status.DailySet.Count(offer => offer.Complete), status.DailySet.Count);
+
+            return status;
+        }
+        catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
+        {
+            _logger.LogWarning(ex, "Citanje Rewards flyout-a nije uspelo.");
+            return null;
+        }
+    }
+
+    /// <summary>Stanje iz Rewards JSON-a je pouzdanije od zaglavlja bing.com, koje ostaje kao rezerva.</summary>
+    private async Task<int?> ReadBingPointsAsync(IPage page)
+    {
+        var status = await ReadBingStatusAsync(page);
+        if (status is { AvailablePoints: > 0 })
+        {
+            return status.AvailablePoints;
+        }
+
+        _logger.LogInformation("Padam na citanje poena iz zaglavlja bing.com.");
+        await NavigateAsync(page, BingHomeUrl);
+
+        return await PollForPointsAsync(page, async () =>
         {
             var text = await page.EvaluateAsync<string>(@"
                 () => {
@@ -351,8 +505,202 @@ public class RewardAutomationService
             ");
             return ParseWholeNumber(text);
         }, "Bing stanje poena");
+    }
 
-        await HandleBalanceAsync(page, dbContext, account, "bing", points, failures);
+    /// <summary>
+    /// Odradjuje Daily Set (uobicajeno 3 x 10 poena). Neuspeh ovde se ne racuna kao pad posla -
+    /// ponude se menjaju svakog dana i kvizovi su po prirodi nepouzdani.
+    /// </summary>
+    private async Task RunBingDailySetAsync(IPage page, BingRewardsStatus? status)
+    {
+        if (status is null)
+        {
+            return;
+        }
+
+        if (status.DailySet.Count == 0)
+        {
+            _logger.LogInformation("Daily Set za danas nije pronadjen u Rewards statusu.");
+            return;
+        }
+
+        var pending = status.DailySet.Where(offer => !offer.Complete).ToList();
+        if (pending.Count == 0)
+        {
+            _logger.LogInformation("Daily Set je vec kompletan ({Total} zadataka).", status.DailySet.Count);
+            return;
+        }
+
+        _logger.LogInformation("Daily Set: preostalo {Count} od {Total} zadataka.", pending.Count, status.DailySet.Count);
+
+        foreach (var offer in pending)
+        {
+            if (offer.IsQuiz && !_options.BingDailySetQuizzes)
+            {
+                _logger.LogInformation("Preskacem kviz \"{Title}\" - iskljucen u podesavanjima.", offer.Title);
+                continue;
+            }
+
+            try
+            {
+                await RunBingOfferAsync(page, offer);
+            }
+            catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
+            {
+                _logger.LogWarning(ex, "Daily Set zadatak \"{Title}\" ({OfferId}) nije zavrsen.", offer.Title, offer.OfferId);
+            }
+        }
+    }
+
+    private async Task RunBingOfferAsync(IPage page, BingOffer offer)
+    {
+        _logger.LogInformation("Daily Set zadatak \"{Title}\" ({Points} poena, kviz: {IsQuiz}).",
+            offer.Title, offer.Points, offer.IsQuiz);
+
+        var tab = await page.Context.NewPageAsync();
+        try
+        {
+            await NavigateAsync(tab, offer.DestinationUrl);
+            await HumanPauseAsync(tab, 3000, 6000);
+
+            if (offer.IsQuiz)
+            {
+                await CompleteQuizAsync(tab, offer);
+            }
+            else
+            {
+                // Obicnom "urlreward" zadatku je dovoljno da stranica bude otvorena.
+                await HumanPauseAsync(tab, 3000, 6000);
+            }
+        }
+        finally
+        {
+            if (!tab.IsClosed)
+            {
+                await tab.CloseAsync();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Prolazi kroz ponudjene odgovore dok ih ima. Bing priznaje poene i za netacne odgovore,
+    /// pa je klikanje svih opcija redom najpouzdaniji nacin da se kviz zavrsi.
+    /// </summary>
+    private async Task CompleteQuizAsync(IPage page, BingOffer offer)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(_options.BingQuizTimeoutMs);
+
+        foreach (var selector in QuizStartSelectors)
+        {
+            if (await TryClickAsync(page, page.Locator(selector)))
+            {
+                await HumanPauseAsync(page, 2000, 4000);
+                break;
+            }
+        }
+
+        var clicks = 0;
+
+        while (DateTime.UtcNow < deadline && clicks < MaxQuizClicks)
+        {
+            var clickedSomething = false;
+
+            for (var i = 0; i < QuizOptionsPerQuestion && DateTime.UtcNow < deadline; i++)
+            {
+                if (await TryClickAsync(page, page.Locator($"#rqAnswerOption{i}")))
+                {
+                    clicks++;
+                    clickedSomething = true;
+                    await HumanPauseAsync(page, 1500, 3000);
+                }
+            }
+
+            if (!clickedSomething)
+            {
+                foreach (var selector in QuizCardSelectors)
+                {
+                    if (await TryClickAsync(page, page.Locator(selector)))
+                    {
+                        clicks++;
+                        clickedSomething = true;
+                        await HumanPauseAsync(page, 1500, 3000);
+                        break;
+                    }
+                }
+            }
+
+            if (!clickedSomething)
+            {
+                break;
+            }
+        }
+
+        _logger.LogInformation("Kviz \"{Title}\": kliknuto {Clicks} opcija.", offer.Title, clicks);
+    }
+
+    /// <summary>Preuzima bonus poene koji stoje neuzeti ("Ready to claim") i inace bi istekli.</summary>
+    private async Task ClaimBingPointsAsync(IPage page, BingRewardsStatus? status)
+    {
+        var url = status?.ClaimUrl;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        var tab = await page.Context.NewPageAsync();
+        try
+        {
+            await NavigateAsync(tab, url);
+            await HumanPauseAsync(tab, 3000, 6000);
+
+            foreach (var selector in ClaimButtonSelectors)
+            {
+                if (await TryClickAsync(tab, tab.Locator(selector)))
+                {
+                    _logger.LogInformation("Preuzeti neuzeti bonus poeni.");
+                    await HumanPauseAsync(tab, 2000, 4000);
+                    return;
+                }
+            }
+
+            _logger.LogInformation("Nema bonus poena za preuzimanje.");
+        }
+        catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
+        {
+            _logger.LogWarning(ex, "Preuzimanje bonus poena nije uspelo.");
+        }
+        finally
+        {
+            if (!tab.IsClosed)
+            {
+                await tab.CloseAsync();
+            }
+        }
+    }
+
+    /// <summary>Klikce samo ono sto stvarno postoji, vidi se i omoguceno je. Vraca da li je klik izvrsen.</summary>
+    private async Task<bool> TryClickAsync(IPage page, ILocator locator)
+    {
+        try
+        {
+            if (page.IsClosed || await locator.CountAsync() == 0)
+            {
+                return false;
+            }
+
+            var element = locator.First;
+            if (!await element.IsVisibleAsync() || !await element.IsEnabledAsync())
+            {
+                return false;
+            }
+
+            await element.ClickAsync(new LocatorClickOptions { Timeout = _options.ActionTimeoutMs });
+            return true;
+        }
+        catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
+        {
+            return false;
+        }
     }
 
     private async Task RunYsenseAsync(IPage page, AppDbContext dbContext, Account account, List<string> failures)

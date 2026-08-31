@@ -59,8 +59,7 @@ public class AccountsController : ControllerBase
         backgroundJobs.Enqueue<RewardTracker.Infrastructure.Services.RewardAutomationService>(s => s.StartLoginSessionAsync(id));
         return Ok();
     }
-    [HttpPost("{id}/run")]
-        [HttpPost("{id}/scan")]
+    [HttpPost("{id}/scan")]
     public IActionResult ScanSite(int id, [FromServices] IBackgroundJobClient backgroundJobs)
     {
         backgroundJobs.Enqueue<RewardTracker.Infrastructure.Services.RewardAutomationService>(s => s.ScanSiteDOMAsync(id));

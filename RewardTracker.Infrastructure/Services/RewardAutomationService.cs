@@ -194,7 +194,7 @@ public class RewardAutomationService
 
                 if (!string.IsNullOrWhiteSpace(pointsText))
                 {
-                    var cleanNumber = Regex.Replace(pointsText, "[^0-9\.]", "");
+                    var cleanNumber = Regex.Replace(pointsText, @"[^0-9\.]", "");
                     if (decimal.TryParse(cleanNumber, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal decimalPts))
                     {
                         int pts = (int)Math.Round(decimalPts * 100);
@@ -209,7 +209,7 @@ public class RewardAutomationService
                 await Task.Delay(15000);
                 
                 var html = await desktopPage.ContentAsync();
-                var match = Regex.Match(html, "secondaryLabel"":""[^0-9]*([0-9]+\.[0-9]+));
+                var match = Regex.Match(html, @"secondaryLabel"":""[^0-9]*([0-9]+\.[0-9]+)");
                 if (match.Success)
                 {
                     if (decimal.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal decimalPts))

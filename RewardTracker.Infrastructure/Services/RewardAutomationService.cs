@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System;
 using System.Text.RegularExpressions;
 using System.Linq;
-using System.Collections.Generic;
 
 namespace RewardTracker.Infrastructure.Services;
 
@@ -83,65 +82,7 @@ public class RewardAutomationService
 
         try 
         {
-            // 1. PRVO KLIKANJE DAILY SET KARTICA
-            Console.WriteLine("=== START: KLIKANJE DAILY SET KARTICA ===");
-            try
-            {
-                Console.WriteLine("Priprema (Bing pocetna)...");
-                await desktopPage.GotoAsync("https://www.bing.com");
-                await Task.Delay(3000);
-                
-                Console.WriteLine("Ubacivanje JS preusmerenja ka Dashboard-u...");
-                // Javascript redirekcija cuva Referer pa izgleda kao organski prelaz
-                await desktopPage.EvaluateAsync("window.location.assign('https://rewards.bing.com/dashboard');");
-                
-                Console.WriteLine("Cekamo ucitavanje Rewards Dashboard-a...");
-                await Task.Delay(12000); // 12 sekundi za ucitavanje velike Angular aplikacije
-
-                var taskLinks = await desktopPage.EvaluateAsync<List<string>>(@"() => {
-                    var selectors = [
-                        'mee-rewards-daily-set-item-content a',
-                        'mee-rewards-more-activities-card-item a',
-                        '.ds-card-sec a',
-                        '.c-card'
-                    ];
-                    var links = [];
-                    selectors.forEach(sel => {
-                        document.querySelectorAll(sel).forEach(el => {
-                            if (el.href && el.href.startsWith('http') && links.indexOf(el.href) === -1) {
-                                links.push(el.href);
-                            }
-                        });
-                    });
-                    return links;
-                }");
-
-                Console.WriteLine("Pronasao sam " + taskLinks.Count + " zadataka (kartica) na dashboardu.");
-
-                foreach (var link in taskLinks)
-                {
-                    try
-                    {
-                        Console.WriteLine("Otvaram zadatak u novom tabu...");
-                        var taskPage = await desktopContext.NewPageAsync();
-                        await taskPage.GotoAsync(link);
-                        await Task.Delay(random.Next(6000, 10000));
-                        await taskPage.CloseAsync();
-                        await Task.Delay(2000);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine("Greska pri otvaranju zadatka: " + ex.Message);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Nisam uspeo da zavrsim Daily Set zadatke: " + ex.Message);
-            }
-
-            // 2. ONDA BING PRETRAGE
-            Console.WriteLine("=== START: BING PRETRAGE (Optimizovano) ===");
+            Console.WriteLine("=== START: BING PRETRAGE (25 iteracija) ===");
             for(int i = 0; i < 25; i++)
             {
                 var term = baseWords[random.Next(baseWords.Length)] + " " + baseWords[random.Next(baseWords.Length)] + " " + random.Next(100, 9999);
@@ -153,7 +94,6 @@ public class RewardAutomationService
                 await Task.Delay(random.Next(4000, 10000)); 
             }
 
-            // 3. CITANJE POENA
             Console.WriteLine("=== CITANJE UKUPNIH POENA SA BING EKRANA ===");
             await desktopPage.GotoAsync("https://www.bing.com");
             await Task.Delay(4000); 

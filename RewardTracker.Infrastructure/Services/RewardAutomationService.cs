@@ -337,6 +337,8 @@ public class RewardAutomationService
             await ClaimBingPointsAsync(page, status);
         }
 
+        await RunBingAppActivitiesAsync(page);
+
         var points = await ReadBingPointsAsync(page);
         await HandleBalanceAsync(page, dbContext, account, "bing", points, failures);
     }
@@ -678,9 +680,102 @@ public class RewardAutomationService
         }
     }
 
-    /// <summary>Klikce samo ono sto stvarno postoji, vidi se i omoguceno je. Vraca da li je klik izvrsen.</summary>
-    private async Task<bool> TryClickAsync(IPage page, ILocator locator)
+    /// <summary>
+    /// Aktivnosti koje postoje samo u Bing mobilnoj aplikaciji ("Read to earn", dnevni check-in).
+    /// Idu preko Rewards API-ja jer ih na webu nema.
+    /// </summary>
+    private async Task RunBingAppActivitiesAsync(IPage page)
     {
+        if (!_options.BingReadToEarn && !_options.BingDailyCheckIn)
+        {
+            return;
+        }
+
+        var client = new BingRewardsApiClient(_logger, _options);
+        if (!await client.AuthenticateAsync(page.Context))
+        {
+            _logger.LogWarning("Preskacem aktivnosti iz mobilne aplikacije - prijava na Rewards API nije uspela.");
+            return;
+        }
+
+        if (_options.BingReadToEarn)
+        {
+            await RunReadToEarnAsync(client, page);
+        }
+
+        if (_options.BingDailyCheckIn)
+        {
+            await RunDailyCheckInAsync(client);
+        }
+    }
+
+    private async Task RunReadToEarnAsync(BingRewardsApiClient client, IPage page)
+    {
+        var activity = await client.TryGetActivityAsync("msnreadearn");
+        if (activity is null)
+        {
+            _logger.LogInformation("Read to earn nije ponudjen ovom nalogu.");
+            return;
+        }
+
+        var remaining = activity.RemainingActivities;
+        if (remaining <= 0)
+        {
+            _logger.LogInformation("Read to earn je vec odradjen ({Progress}/{Max} poena).",
+                activity.PointProgress, activity.PointMax);
+            return;
+        }
+
+        var target = Math.Min(remaining, _options.BingMaxReadArticles);
+        _logger.LogInformation("Read to earn: prijavljujem {Target} od {Remaining} preostalih clanaka.",
+            target, remaining);
+
+        var earned = 0;
+        for (var i = 0; i < target; i++)
+        {
+            var points = await client.ReportActivityAsync(activity);
+            if (points is null)
+            {
+                _logger.LogWarning("Read to earn: prijava {Index}/{Target} nije uspela - prekidam.", i + 1, target);
+                break;
+            }
+
+            earned += points.Value;
+
+            // Citanje clanka traje - bez pauze bi obrazac bio ocigledno masinski.
+            await HumanPauseAsync(page, 8000, 20000);
+        }
+
+        _logger.LogInformation("Read to earn: zaradjeno {Earned} poena.", earned);
+    }
+
+    private async Task RunDailyCheckInAsync(BingRewardsApiClient client)
+    {
+        var activity = await client.TryGetActivityAsync("checkin");
+        if (activity is null)
+        {
+            _logger.LogInformation("Dnevni check-in nije ponudjen ovom nalogu.");
+            return;
+        }
+
+        if (activity.Complete)
+        {
+            _logger.LogInformation("Dnevni check-in je vec odradjen.");
+            return;
+        }
+
+        var points = await client.ReportActivityAsync(activity);
+        if (points is null)
+        {
+            _logger.LogWarning("Dnevni check-in nije uspeo.");
+            return;
+        }
+
+        _logger.LogInformation("Dnevni check-in: zaradjeno {Points} poena.", points.Value);
+    }
+
+    /// <summary>Klikce samo ono sto stvarno postoji, vidi se i omoguceno je. Vraca da li je klik izvrsen.</summary>
+    private async Task<bool> TryClickAsync(IPage page, ILocator locator)    {
         try
         {
             if (page.IsClosed || await locator.CountAsync() == 0)

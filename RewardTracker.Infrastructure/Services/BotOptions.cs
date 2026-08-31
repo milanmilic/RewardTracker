@@ -42,4 +42,22 @@ public class BotOptions
 
     /// <summary>Pokusaj da preuzmes neuzete bonus poene ("Ready to claim").</summary>
     public bool BingClaimPoints { get; set; } = true;
+
+    /// <summary>
+    /// Odradi "Read to earn" (citanje MSN clanaka) preko Rewards API-ja mobilne aplikacije.
+    /// Ta aktivnost ne postoji na webu.
+    /// </summary>
+    public bool BingReadToEarn { get; set; } = true;
+
+    /// <summary>Gornja granica prijavljenih clanaka po pokretanju.</summary>
+    public int BingMaxReadArticles { get; set; } = 10;
+
+    /// <summary>Odradi dnevni check-in iz mobilne aplikacije.</summary>
+    public bool BingDailyCheckIn { get; set; } = true;
+
+    /// <summary>Drzava naloga, salje se Rewards API-ju.</summary>
+    public string BingCountry { get; set; } = "rs";
+
+    /// <summary>Jezik naloga, salje se Rewards API-ju.</summary>
+    public string BingLanguage { get; set; } = "en";
 }

@@ -116,71 +116,107 @@ public class RewardAutomationService
         finally { await browser.CloseAsync(); }
     }
 
-    public async Task RunDailyTasksAsync(int accountId)
+        public async Task RunDailyTasksAsync(int accountId)
     {
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var account = await dbContext.Accounts.FindAsync(accountId);
+        var account = await dbContext.Accounts.Include(a => a.RewardSite).FirstOrDefaultAsync(a => a.Id == accountId);
         if (account == null || string.IsNullOrEmpty(account.SessionData)) return;
 
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
         
-        var random = new Random();
-        var baseWords = new[] { "Srbija", "Beograd", "Vesti", "Sport", "Filmovi", "Recepti", "Tehnologija", "Zanimljivosti", "Istorija", "Automobili", "Kompjuteri", "Muzika", "Klima", "Putovanja", "Fizika", "Astronomija", "Planete", "Ekonomija", "Zdravlje", "Trening", "Ishrana", "Programiranje", "Arhitektura" };
-
         var desktopOptions = new BrowserNewContextOptions { StorageState = account.SessionData };
         var desktopContext = await browser.NewContextAsync(desktopOptions);
         var desktopPage = await desktopContext.NewPageAsync();
 
+        var siteName = account.RewardSite.Name.ToLower();
+
         try 
         {
-            Console.WriteLine("=== START: BING PRETRAGE (25 iteracija) ===");
-            for(int i = 0; i < 25; i++)
+            if (siteName.Contains("bing"))
             {
-                var term = baseWords[random.Next(baseWords.Length)] + " " + baseWords[random.Next(baseWords.Length)] + " " + random.Next(100, 9999);
-                await desktopPage.GotoAsync("https://www.bing.com");
-                await Task.Delay(2000);
-                var searchInput = desktopPage.Locator("[name='q']").First;
-                await searchInput.FillAsync(term, new() { Force = true });
-                await searchInput.PressAsync("Enter");
-                await Task.Delay(random.Next(4000, 10000)); 
-            }
+                var random = new Random();
+                var baseWords = new[] { "Srbija", "Beograd", "Vesti", "Sport", "Filmovi", "Recepti", "Tehnologija", "Zanimljivosti", "Istorija", "Automobili", "Kompjuteri", "Muzika", "Klima", "Putovanja", "Fizika", "Astronomija", "Planete", "Ekonomija", "Zdravlje", "Trening", "Ishrana", "Programiranje", "Arhitektura" };
 
-            Console.WriteLine("=== CITANJE UKUPNIH POENA SA BING EKRANA ===");
-            await desktopPage.GotoAsync("https://www.bing.com");
-            await Task.Delay(4000); 
-
-            var pointsText = await desktopPage.EvaluateAsync<string>(@"
-                () => {
-                    var el = document.querySelector('span.points-container');
-                    if (el) return el.innerText;
-                    
-                    var backup = document.querySelector('[data-tag=""RewardsHeader.Counter""]');
-                    if (backup) return backup.innerText;
-
-                    return '';
-                }
-            ");
-
-            if (!string.IsNullOrWhiteSpace(pointsText))
-            {
-                var cleanNumber = Regex.Replace(pointsText, "[^0-9]", "");
-                if (int.TryParse(cleanNumber, out int pts) && pts > 0)
+                Console.WriteLine("=== START: BING PRETRAGE ===");
+                for(int i = 0; i < 25; i++)
                 {
-                    Console.WriteLine("Uspesno prepoznat broj: " + pts);
-                    var log = new RewardTracker.Core.Entities.PointLog
+                    var term = baseWords[random.Next(baseWords.Length)] + " " + baseWords[random.Next(baseWords.Length)] + " " + random.Next(100, 9999);
+                    await desktopPage.GotoAsync("https://www.bing.com");
+                    await Task.Delay(2000);
+                    var searchInput = desktopPage.Locator("[name='q']").First;
+                    await searchInput.FillAsync(term, new() { Force = true });
+                    await searchInput.PressAsync("Enter");
+                    await Task.Delay(random.Next(4000, 10000)); 
+                }
+
+                Console.WriteLine("=== CITANJE UKUPNIH POENA SA BING EKRANA ===");
+                await desktopPage.GotoAsync("https://www.bing.com");
+                await Task.Delay(4000); 
+
+                var pointsText = await desktopPage.EvaluateAsync<string>(@"
+                    () => {
+                        var el = document.querySelector('span.points-container');
+                        if (el) return el.innerText;
+                        var backup = document.querySelector('[data-tag=""RewardsHeader.Counter""]');
+                        if (backup) return backup.innerText;
+                        return '';
+                    }
+                ");
+
+                if (!string.IsNullOrWhiteSpace(pointsText))
+                {
+                    var cleanNumber = Regex.Replace(pointsText, "[^0-9]", "");
+                    if (int.TryParse(cleanNumber, out int pts) && pts > 0)
                     {
-                        AccountId = account.Id,
-                        Date = DateTime.UtcNow,
-                        TotalPointsAfter = pts,
-                        PointsEarned = pts - account.CurrentPoints
-                    };
-                    dbContext.PointLogs.Add(log);
-                    
-                    account.CurrentPoints = pts;
-                    dbContext.Accounts.Update(account);
-                    await dbContext.SaveChangesAsync();
+                        SavePoints(dbContext, account, pts);
+                    }
+                }
+            }
+            else if (siteName.Contains("ysense"))
+            {
+                Console.WriteLine("=== CITANJE POENA SA YSENSE ===");
+                await desktopPage.GotoAsync("https://www.ysense.com/");
+                await Task.Delay(10000);
+                
+                var pointsText = await desktopPage.EvaluateAsync<string>(@"
+                    () => {
+                        var b = document.querySelector('.dropdown-menu-right li a strong');
+                        if (b && b.innerText.includes('
+}
+
+
+)) return b.innerText;
+                        return '';
+                    }
+                ");
+
+                if (!string.IsNullOrWhiteSpace(pointsText))
+                {
+                    var cleanNumber = Regex.Replace(pointsText, "[^0-9\.]", "");
+                    if (decimal.TryParse(cleanNumber, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal decimalPts))
+                    {
+                        int pts = (int)Math.Round(decimalPts * 100);
+                        SavePoints(dbContext, account, pts);
+                    }
+                }
+            }
+            else if (siteName.Contains("freecash"))
+            {
+                Console.WriteLine("=== CITANJE POENA SA FREECASH ===");
+                await desktopPage.GotoAsync("https://freecash.com/");
+                await Task.Delay(15000);
+                
+                var html = await desktopPage.ContentAsync();
+                var match = Regex.Match(html, "secondaryLabel"":""[^0-9]*([0-9]+\.[0-9]+));
+                if (match.Success)
+                {
+                    if (decimal.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal decimalPts))
+                    {
+                        int pts = (int)Math.Round(decimalPts * 100);
+                        SavePoints(dbContext, account, pts);
+                    }
                 }
             }
             
@@ -193,6 +229,24 @@ public class RewardAutomationService
         
         Console.WriteLine("=== BOT JE ZAVRSIO SA RADOM ===");
     }
+
+    private void SavePoints(AppDbContext dbContext, RewardTracker.Core.Entities.Account account, int pts)
+    {
+        Console.WriteLine("Uspesno prepoznat broj poena/centi: " + pts);
+        var log = new RewardTracker.Core.Entities.PointLog
+        {
+            AccountId = account.Id,
+            Date = DateTime.UtcNow,
+            TotalPointsAfter = pts,
+            PointsEarned = pts - account.CurrentPoints
+        };
+        dbContext.PointLogs.Add(log);
+        
+        account.CurrentPoints = pts;
+        dbContext.Accounts.Update(account);
+        dbContext.SaveChanges();
+    }
 }
+
 
 

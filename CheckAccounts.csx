@@ -7,10 +7,10 @@ var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
 optionsBuilder.UseNpgsql("Host=localhost;Database=reward_tracker;Username=postgres;Password=admin");
 
 using var dbContext = new AppDbContext(optionsBuilder.Options);
-var accounts = dbContext.Accounts.Include(a => a.RewardSite).ToList();
+var sites = dbContext.RewardSites.ToList();
 
-Console.WriteLine("--- NALOZI U BAZI ---");
-foreach (var a in accounts)
+Console.WriteLine("--- SITOVI U BAZI ---");
+foreach (var s in sites)
 {
-    Console.WriteLine($"ID: {a.Id}, Sajt: {a.RewardSite?.Name}, Username: {a.Username}, Ima Sesiju: {a.SessionData != null}");
+    Console.WriteLine($"ID: {s.Id}, Name: {s.Name}");
 }

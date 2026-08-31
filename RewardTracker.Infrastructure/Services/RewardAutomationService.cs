@@ -83,24 +83,20 @@ public class RewardAutomationService
 
         try 
         {
-            // 1. PRVO KLIKANJE DAILY SET KARTICA (Za brze testiranje)
+            // 1. PRVO KLIKANJE DAILY SET KARTICA
             Console.WriteLine("=== START: KLIKANJE DAILY SET KARTICA ===");
             try
             {
-                Console.WriteLine("Ulazak na Dashboard preko Bing pretrage (anti-bot tehnika)...");
+                Console.WriteLine("Priprema (Bing pocetna)...");
                 await desktopPage.GotoAsync("https://www.bing.com");
-                await Task.Delay(2000);
+                await Task.Delay(3000);
                 
-                var searchInput = desktopPage.Locator("[name='q']").First;
-                await searchInput.FillAsync("Microsoft Rewards", new() { Force = true });
-                await searchInput.PressAsync("Enter");
-                await Task.Delay(4000);
-                
-                var rewardsLink = desktopPage.Locator("a[href*='rewards.bing.com']").First;
-                await rewardsLink.ClickAsync();
+                Console.WriteLine("Ubacivanje JS preusmerenja ka Dashboard-u...");
+                // Javascript redirekcija cuva Referer pa izgleda kao organski prelaz
+                await desktopPage.EvaluateAsync("window.location.assign('https://rewards.bing.com/dashboard');");
                 
                 Console.WriteLine("Cekamo ucitavanje Rewards Dashboard-a...");
-                await Task.Delay(10000); 
+                await Task.Delay(12000); // 12 sekundi za ucitavanje velike Angular aplikacije
 
                 var taskLinks = await desktopPage.EvaluateAsync<List<string>>(@"() => {
                     var selectors = [

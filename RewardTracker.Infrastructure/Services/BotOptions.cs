@@ -57,11 +57,14 @@ public class BotOptions
     /// <summary>Odradi Bing Daily Set zadatke (uobicajeno 3 x 10 poena).</summary>
     public bool BingDailySet { get; set; } = true;
 
-    /// <summary>Pokusaj i kvizove iz Daily Set-a, ne samo obicne linkove.</summary>
-    public bool BingDailySetQuizzes { get; set; } = true;
+    /// <summary>
+    /// Koliko najmanje zadrzati otvorenu stranicu zadatka pre zatvaranja. Zasluga se knjizi
+    /// na klik sa dashboard-a, ali stranica mora malo da odstoji.
+    /// </summary>
+    public int BingOfferDwellMinMs { get; set; } = 12_000;
 
-    /// <summary>Najduze vreme koje trosimo na jedan kviz.</summary>
-    public int BingQuizTimeoutMs { get; set; } = 90_000;
+    /// <summary>Gornja granica zadrzavanja na stranici zadatka.</summary>
+    public int BingOfferDwellMaxMs { get; set; } = 16_000;
 
     /// <summary>Pokusaj da preuzmes neuzete bonus poene ("Ready to claim").</summary>
     public bool BingClaimPoints { get; set; } = true;

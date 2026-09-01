@@ -18,31 +18,19 @@ public class RewardAutomationService
 
     private const string BingHomeUrl = "https://www.bing.com";
 
+    private const string BingSearchUrl = "https://www.bing.com/search";
+
+    /// <summary>
+    /// Dashboard sa karticama Daily Set-a. Poeni za zadatak se priznaju tek kad se kartica
+    /// klikne ovde - otvaranje istog destinationUrl-a direktno ne donosi nista.
+    /// </summary>
+    private const string BingDashboardUrl = "https://rewards.bing.com/";
+
     /// <summary>
     /// Jedina stranica koja jos uvek nosi kompletan Rewards JSON (userStatus, counters,
     /// dailySetPromotions). Novi rewards.bing.com/dashboard je Next.js i nema upotrebljiv HTML.
     /// </summary>
     private const string BingFlyoutUrl = "https://www.bing.com/rewards/panelflyout";
-
-    /// <summary>Bing koristi iste ID-jeve opcija i za svako naredno pitanje u kvizu.</summary>
-    private const int QuizOptionsPerQuestion = 8;
-
-    private const int MaxQuizClicks = 60;
-
-    private static readonly string[] QuizStartSelectors =
-    [
-        "#rqStartQuiz",
-        "input#rqStartQuiz",
-        "#quizWelcomeContainer input[type='button']"
-    ];
-
-    /// <summary>Kvizovi tipa "This or That" i kartice sa dve ponudjene opcije.</summary>
-    private static readonly string[] QuizCardSelectors =
-    [
-        ".wk_OptionClickClass",
-        ".btOptionCard",
-        ".rqOption"
-    ];
 
     /// <summary>Dugme unutar modala koje stvarno preuzima poene ("3 Pending Claim points").</summary>
     private const string ClaimModalButtonSelector = "button:has-text('Claim points')";
@@ -386,21 +374,20 @@ public class RewardAutomationService
                        $"{Random.Shared.Next(100, 9999)}";
             try
             {
-                await NavigateAsync(page, BingHomeUrl);
+                // Direktna navigacija na stranicu rezultata. Raniji nacin - otvoriti pocetnu
+                // stranu, upisati pojam i pritisnuti Enter - u praksi najcesce nije poslao
+                // formu: stranica bi ostala na bing.com/, a posao se racunao kao uspesan jer
+                // se cekalo samo DOMContentLoaded, koji nad neizmenjenom stranicom odmah prodje.
+                // Provereno uzivo: od 21 takve "pretrage" priznate su 3.
+                var url = $"{BingSearchUrl}?q={Uri.EscapeDataString(term)}&form=QBLH";
+                await NavigateAsync(page, url);
 
-                var searchInput = page.Locator("[name='q']").First;
-                await searchInput.WaitForAsync(new LocatorWaitForOptions
+                if (!page.Url.Contains("/search?", StringComparison.OrdinalIgnoreCase))
                 {
-                    State = WaitForSelectorState.Visible,
-                    Timeout = _options.ActionTimeoutMs
-                });
-
-                await searchInput.FillAsync(term, new LocatorFillOptions { Force = true });
-                await searchInput.PressAsync("Enter");
-                await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded, new PageWaitForLoadStateOptions
-                {
-                    Timeout = _options.NavigationTimeoutMs
-                });
+                    _logger.LogWarning("Pretraga {Index}/{Total} nije otvorila rezultate ({Url}).",
+                        i + 1, target, page.Url);
+                    continue;
+                }
 
                 completed++;
                 await HumanPauseAsync(page, 4000, 10000);
@@ -553,110 +540,114 @@ public class RewardAutomationService
 
         _logger.LogInformation("Daily Set: preostalo {Count} od {Total} zadataka.", pending.Count, status.DailySet.Count);
 
-        foreach (var offer in pending)
-        {
-            if (offer.IsQuiz && !_options.BingDailySetQuizzes)
-            {
-                _logger.LogInformation("Preskacem kviz \"{Title}\" - iskljucen u podesavanjima.", offer.Title);
-                continue;
-            }
-
-            try
-            {
-                await RunBingOfferAsync(page, offer);
-            }
-            catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
-            {
-                _logger.LogWarning(ex, "Daily Set zadatak \"{Title}\" ({OfferId}) nije zavrsen.", offer.Title, offer.OfferId);
-            }
-        }
-    }
-
-    private async Task RunBingOfferAsync(IPage page, BingOffer offer)
-    {
-        _logger.LogInformation("Daily Set zadatak \"{Title}\" ({Points} poena, kviz: {IsQuiz}).",
-            offer.Title, offer.Points, offer.IsQuiz);
-
-        var tab = await page.Context.NewPageAsync();
+        var dashboard = await page.Context.NewPageAsync();
         try
         {
-            await NavigateAsync(tab, offer.DestinationUrl);
-            await HumanPauseAsync(tab, 3000, 6000);
+            await NavigateAsync(dashboard, BingDashboardUrl);
+            await WaitForAppReadyAsync(dashboard);
 
-            if (offer.IsQuiz)
+            foreach (var offer in pending)
             {
-                await CompleteQuizAsync(tab, offer);
-            }
-            else
-            {
-                // Obicnom "urlreward" zadatku je dovoljno da stranica bude otvorena.
-                await HumanPauseAsync(tab, 3000, 6000);
+                try
+                {
+                    await RunBingOfferAsync(dashboard, offer);
+                }
+                catch (Exception ex) when (ex is TimeoutException or PlaywrightException)
+                {
+                    _logger.LogWarning(ex, "Daily Set zadatak \"{Title}\" ({OfferId}) nije zavrsen.", offer.Title, offer.OfferId);
+                }
             }
         }
         finally
         {
-            if (!tab.IsClosed)
+            if (!dashboard.IsClosed)
             {
-                await tab.CloseAsync();
+                await dashboard.CloseAsync();
             }
         }
     }
 
     /// <summary>
-    /// Prolazi kroz ponudjene odgovore dok ih ima. Bing priznaje poene i za netacne odgovore,
-    /// pa je klikanje svih opcija redom najpouzdaniji nacin da se kviz zavrsi.
+    /// Klikce karticu zadatka na Rewards dashboard-u i saceka da se otvoreni tab ucita.
     /// </summary>
-    private async Task CompleteQuizAsync(IPage page, BingOffer offer)
+    /// <remarks>
+    /// Provereno uzivo: navigacija pravo na offer.DestinationUrl ne donosi nijedan poen, ma
+    /// koliko se dugo cekalo, jer se zasluga vezuje za klik na dashboard-u. Klik na karticu
+    /// donosi punih 10 poena - i za kvizove, bez odgovaranja na ijedno pitanje.
+    /// </remarks>
+    private async Task RunBingOfferAsync(IPage dashboard, BingOffer offer)
     {
-        var deadline = DateTime.UtcNow.AddMilliseconds(_options.BingQuizTimeoutMs);
+        _logger.LogInformation("Daily Set zadatak \"{Title}\" ({Points} poena, kviz: {IsQuiz}).",
+            offer.Title, offer.Points, offer.IsQuiz);
 
-        foreach (var selector in QuizStartSelectors)
+        var card = await FindOfferCardAsync(dashboard, offer);
+        if (card is null)
         {
-            if (await TryClickAsync(page, page.Locator(selector)))
-            {
-                await HumanPauseAsync(page, 2000, 4000);
-                break;
-            }
+            _logger.LogWarning("Kartica za \"{Title}\" nije pronadjena na dashboard-u.", offer.Title);
+            await CaptureScreenshotAsync(dashboard, "bing_dailyset_bez_kartice");
+            return;
         }
 
-        var clicks = 0;
-
-        while (DateTime.UtcNow < deadline && clicks < MaxQuizClicks)
+        IPage? tab = null;
+        try
         {
-            var clickedSomething = false;
+            var pending = dashboard.Context.WaitForPageAsync();
+            await card.ClickAsync(new LocatorClickOptions { Timeout = _options.ActionTimeoutMs });
 
-            for (var i = 0; i < QuizOptionsPerQuestion && DateTime.UtcNow < deadline; i++)
+            tab = await pending;
+            await tab.WaitForLoadStateAsync(LoadState.DOMContentLoaded, new PageWaitForLoadStateOptions
             {
-                if (await TryClickAsync(page, page.Locator($"#rqAnswerOption{i}")))
-                {
-                    clicks++;
-                    clickedSomething = true;
-                    await HumanPauseAsync(page, 1500, 3000);
-                }
+                Timeout = _options.NavigationTimeoutMs
+            });
+
+            // Zasluga se knjizi tek kad otvorena stranica malo "odstoji".
+            await HumanPauseAsync(tab, _options.BingOfferDwellMinMs, _options.BingOfferDwellMaxMs);
+        }
+        finally
+        {
+            if (tab is not null && !tab.IsClosed)
+            {
+                await tab.CloseAsync();
             }
 
-            if (!clickedSomething)
+            if (!dashboard.IsClosed)
             {
-                foreach (var selector in QuizCardSelectors)
-                {
-                    if (await TryClickAsync(page, page.Locator(selector)))
-                    {
-                        clicks++;
-                        clickedSomething = true;
-                        await HumanPauseAsync(page, 1500, 3000);
-                        break;
-                    }
-                }
-            }
-
-            if (!clickedSomething)
-            {
-                break;
+                await dashboard.BringToFrontAsync();
             }
         }
-
-        _logger.LogInformation("Kviz \"{Title}\": kliknuto {Clicks} opcija.", offer.Title, clicks);
     }
+
+    /// <summary>
+    /// Trazi karticu zadatka. Naslov zadatka stoji kao alt teksta slike na kartici, a kao
+    /// rezerva se koristi poklapanje po odredisnom URL-u.
+    /// </summary>
+    private static async Task<ILocator?> FindOfferCardAsync(IPage dashboard, BingOffer offer)
+    {
+        if (!string.IsNullOrWhiteSpace(offer.Title))
+        {
+            var byAlt = dashboard.Locator($"a:has(img[alt={QuoteSelector(offer.Title)}])");
+            if (await byAlt.CountAsync() > 0)
+            {
+                return byAlt.First;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(offer.DestinationUrl))
+        {
+            // Dovoljno je prvih par parametara - dashboard ih ispisuje HTML-escapovane.
+            var key = offer.DestinationUrl.Split('&')[0];
+            var byHref = dashboard.Locator($"a[href^={QuoteSelector(key)}]");
+            if (await byHref.CountAsync() > 0)
+            {
+                return byHref.First;
+            }
+        }
+
+        return null;
+    }
+
+    private static string QuoteSelector(string value) =>
+        "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
 
     /// <summary>Preuzima bonus poene koji stoje neuzeti ("Ready to claim") i inace bi istekli.</summary>
     private async Task ClaimBingPointsAsync(IPage page, BingRewardsStatus? status)

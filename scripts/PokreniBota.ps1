@@ -149,13 +149,27 @@ try {
     Zapisi 'Gradnja uspesna.'
 
     # --- ciscenje zaostalih procesa ------------------------------------------
-    # Ako je pokretac ranije nasilno ugasen, njegova deca prezive i drze portove
-    # 7214/5173, pa novi API ne moze da se veze i vrti se u krug restartovanja.
-    Get-Process -Name 'RewardTracker.Api', 'RewardTracker.Client' -ErrorAction SilentlyContinue |
-        ForEach-Object {
-            Zapisi "Gasim zaostali proces $($_.ProcessName) (PID $($_.Id))."
-            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
-        }
+    # Ako je pokretac ranije nasilno ugasen, njegova deca prezive i drze portove,
+    # pa novi procesi ne mogu da se vezu i vrte se u krug restartovanja.
+    $zaostali = @()
+
+    $zaostali += Get-Process -Name 'RewardTracker.Api', 'RewardTracker.Client' -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty Id
+
+    # Blazor WASM se vrti kao dotnet.exe koji hostuje blazor-devserver.dll, pa ga
+    # pretraga po imenu procesa ne vidi. Prepoznaje se po putanji do ovog repoa.
+    $zaostali += Get-CimInstance Win32_Process -Filter "Name='dotnet.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like '*blazor-devserver*' -and $_.CommandLine -like "*$koren*" } |
+        Select-Object -ExpandProperty ProcessId
+
+    foreach ($id in ($zaostali | Sort-Object -Unique)) {
+        Zapisi "Gasim zaostali proces (PID $id)."
+        Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
+    }
+
+    if ($zaostali.Count -gt 0) {
+        Start-Sleep -Seconds 3
+    }
 
     # --- pokretanje i odrzavanje procesa -------------------------------------
     function Pokreni([string] $ime, [string] $projekat, [string[]] $argumenti) {

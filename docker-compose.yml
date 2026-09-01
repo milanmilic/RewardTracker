@@ -1,9 +1,10 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15
     container_name: reward_tracker_db
+    # Bez ovoga kontejner ostaje ugasen posle hibernacije laptopa: Docker Desktop
+    # ga pri podizanju zatekne u stanju Exited (255) i ne dira ga.
+    restart: unless-stopped
     environment:
       POSTGRES_USER: reward_user
       POSTGRES_PASSWORD: reward_password
@@ -12,10 +13,17 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reward_user -d reward_tracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   pgadmin:
     image: dpage/pgadmin4
     container_name: reward_tracker_pgadmin
+    restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
